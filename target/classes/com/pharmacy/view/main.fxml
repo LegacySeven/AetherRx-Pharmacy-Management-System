@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.String?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane fx:id="rootPane" xmlns="http://javafx.com/fxml/1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.pharmacy.controller.MainController"
+            styleClass="root-pane">
+    
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox styleClass="sidebar" spacing="15" prefWidth="240">
+            <padding>
+                <Insets top="30" right="20" bottom="20" left="20"/>
+            </padding>
+            
+            <!-- Brand Logo Header -->
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <VBox>
+                    <Label text="AetherRx" styleClass="brand-title"/>
+                    <Label text="Pharmacy Suite" styleClass="brand-subtitle"/>
+                </VBox>
+            </HBox>
+            
+            <Separator styleClass="sidebar-separator"/>
+            
+            <!-- Navigation Links -->
+            <VBox spacing="8" VBox.vgrow="ALWAYS">
+                <Button fx:id="btnDashboard" text="✥  Dashboard" onAction="#handleNavDashboard" styleClass="nav-button, nav-button-active" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnInventory" text="📦  Inventory Manager" onAction="#handleNavInventory" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnSales" text="📊  Sales Analytics" onAction="#handleNavSales" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnCustomers" text="👥  Customer Records" onAction="#handleNavCustomers" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnSettings" text="⚙  System Settings" onAction="#handleNavSettings" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+            </VBox>
+            <!-- Footer Navigation -->
+            <VBox spacing="8">
+                <Button fx:id="btnLogout" text="🚪  Log Out" onAction="#handleLogout" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnToggleTheme" text="🌗 Toggle Dark Mode" onAction="#handleToggleTheme" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+            </VBox>
+            
+            <!-- Sidebar Footer User Profile -->
+            <VBox styleClass="profile-box" spacing="5">
+                <padding>
+                    <Insets top="12" right="15" bottom="12" left="15"/>
+                </padding>
+                <Label text="Crispin" styleClass="profile-name"/>
+                <Label text="Administrator" styleClass="profile-role"/>
+            </VBox>
+        </VBox>
+    </left>
+
+    <!-- CENTER CONTENT -->
+    <center>
+        <VBox fx:id="centerContent" spacing="20" styleClass="main-content">
+            <padding>
+                <Insets top="30" right="25" bottom="25" left="25"/>
+            </padding>
+            
+            <!-- Dashboard Title Header -->
+            <HBox alignment="CENTER_LEFT">
+                <VBox>
+                    <Label text="Inventory Dashboard" styleClass="page-title"/>
+                    <Label text="Real-time pharmaceutical catalog tracking and statistics" styleClass="page-subtitle"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="System Online" styleClass="status-badge-online"/>
+            </HBox>
+
+            <!-- STATISTIC CARDS PANEL -->
+            <HBox spacing="15" styleClass="stat-cards-container">
+                <!-- Card 1: Total Medicines -->
+                <VBox styleClass="stat-card, stat-card-teal" HBox.hgrow="ALWAYS" spacing="5">
+                    <padding>
+                        <Insets top="15" right="20" bottom="15" left="20"/>
+                    </padding>
+                    <Label text="Total Formulations" styleClass="stat-label"/>
+                    <Label fx:id="lblTotalMedicines" text="0" styleClass="stat-value"/>
+                </VBox>
+                
+                <!-- Card 2: Low Stock -->
+                <VBox styleClass="stat-card, stat-card-amber" HBox.hgrow="ALWAYS" spacing="5">
+                    <padding>
+                        <Insets top="15" right="20" bottom="15" left="20"/>
+                    </padding>
+                    <Label text="Low Stock Alerts" styleClass="stat-label"/>
+                    <Label fx:id="lblLowStock" text="0" styleClass="stat-value"/>
+                </VBox>
+
+                <!-- Card 3: Out of Stock -->
+                <VBox styleClass="stat-card, stat-card-rose" HBox.hgrow="ALWAYS" spacing="5">
+                    <padding>
+                        <Insets top="15" right="20" bottom="15" left="20"/>
+                    </padding>
+                    <Label text="Out of Stock" styleClass="stat-label"/>
+                    <Label fx:id="lblOutofStock" text="0" styleClass="stat-value"/>
+                </VBox>
+
+                <!-- Card 4: Inventory Valuation -->
+                <VBox styleClass="stat-card, stat-card-blue" HBox.hgrow="ALWAYS" spacing="5">
+                    <padding>
+                        <Insets top="15" right="20" bottom="15" left="20"/>
+                    </padding>
+                    <Label text="Total Net Valuation" styleClass="stat-label"/>
+                    <Label fx:id="lblTotalValuation" text="0.00" styleClass="stat-value"/>
+                </VBox>
+            </HBox>
+
+            <!-- SEARCH AND FILTER PANEL -->
+            <HBox spacing="15" alignment="CENTER_LEFT" styleClass="filter-bar">
+                <padding>
+                    <Insets top="12" right="15" bottom="12" left="15"/>
+                </padding>
+                
+                <!-- Search Box -->
+                <TextField fx:id="txtSearch" promptText="🔍 Search code, name, category..." styleClass="search-field" HBox.hgrow="ALWAYS" prefHeight="38"/>
+                
+                <!-- Category Dropdown Filter -->
+                <Label text="Filter:" styleClass="filter-label"/>
+                <ComboBox fx:id="comboFilterCategory" styleClass="filter-combo" prefHeight="38" prefWidth="150"/>
+            </HBox>
+
+            <!-- INVENTORY TABLE VIEW -->
+            <VBox VBox.vgrow="ALWAYS" styleClass="table-container">
+                <TableView fx:id="tblInventory" VBox.vgrow="ALWAYS" styleClass="modern-table">
+                    <columns>
+                        <TableColumn fx:id="colCode" text="Med Code" prefWidth="100"/>
+                        <TableColumn fx:id="colName" text="Medicine Name" prefWidth="220"/>
+                        <TableColumn fx:id="colCategory" text="Category" prefWidth="130"/>
+                        <TableColumn fx:id="colStock" text="Stock Qty" prefWidth="95"/>
+                        <TableColumn fx:id="colStatus" text="Stock Status" prefWidth="110"/>
+                        <TableColumn fx:id="colPrice" text="Unit Price" prefWidth="100"/>
+                    </columns>
+                </TableView>
+            </VBox>
+            
+            <!-- TABLE CONTROLS FOOTER -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Button text="🗑 Delete Selected Item" onAction="#handleDeleteMedicine" styleClass="action-button-delete" prefHeight="36"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="Select a record and press Delete to remove it from database." styleClass="footer-help-text"/>
+            </HBox>
+        </VBox>
+    </center>
+
+    <!-- RIGHT PANEL: ADD MEDICINE FORM -->
+    <right>
+        <VBox fx:id="rightPanel" styleClass="right-panel" spacing="20" prefWidth="280">
+            <padding>
+                <Insets top="30" right="20" bottom="20" left="20"/>
+            </padding>
+            
+            <VBox spacing="5">
+                <Label text="Add Formulation" styleClass="panel-title"/>
+                <Label text="Register a new medicine to inventory" styleClass="panel-subtitle"/>
+            </VBox>
+            
+            <Separator styleClass="panel-separator"/>
+            
+            <VBox spacing="15" VBox.vgrow="ALWAYS">
+                <!-- Code Field -->
+                <VBox spacing="5">
+                    <Label text="Medicine Code" styleClass="form-label"/>
+                    <TextField fx:id="txtCode" promptText="e.g. MED007" styleClass="form-field"/>
+                </VBox>
+
+                <!-- Name Field -->
+                <VBox spacing="5">
+                    <Label text="Medicine Name" styleClass="form-label"/>
+                    <TextField fx:id="txtName" promptText="e.g. Advil 200mg" styleClass="form-field"/>
+                </VBox>
+
+                <!-- Category Field -->
+                <VBox spacing="5">
+                    <Label text="Category" styleClass="form-label"/>
+                    <ComboBox fx:id="comboFormCategory" promptText="Select Category" styleClass="form-combo" maxWidth="Infinity"/>
+                </VBox>
+
+                <!-- Stock Field -->
+                <VBox spacing="5">
+                    <Label text="Opening Stock Quantity" styleClass="form-label"/>
+                    <TextField fx:id="txtStock" promptText="e.g. 100" styleClass="form-field"/>
+                </VBox>
+
+                <!-- Price Field -->
+                <VBox spacing="5">
+                    <Label text="Unit Price (GHS)" styleClass="form-label"/>
+                    <TextField fx:id="txtPrice" promptText="e.g. 12.99" styleClass="form-field"/>
+                </VBox>
+                
+                <Region VBox.vgrow="ALWAYS"/>
+                
+                <!-- Submit Button -->
+                <Button text="✓ Register Medicine" onAction="#handleAddMedicine" styleClass="action-button-add" maxWidth="Infinity" prefHeight="44"/>
+            </VBox>
+        </VBox>
+    </right>
+</BorderPane>
