@@ -19,8 +19,9 @@ import java.net.URL;
 import java.util.Optional;
 
 /**
- * Controller for the Main Dashboard of the Pharmacy Management System.
- * Manages page navigation, POS cart, transactions, and all view content.
+ * Core Controller for the AetherRx Pharmacy Management System.
+ * Manages the global state, navigation routing, the Point of Sale (POS) cart, 
+ * transaction history, and dynamic view rendering via Node caching.
  */
 public class MainController {
 
@@ -64,11 +65,15 @@ public class MainController {
     @FXML private VBox centerContent;
     @FXML private VBox rightPanel;
 
-    // --- Internal State ---
+    // --- Internal State & Observables ---
+    /** The master dataset holding all current pharmacy inventory. Shared across views for live updates. */
     private final ObservableList<Medicine> masterData = FXCollections.observableArrayList();
+    /** A filtered view of the masterData used by the Inventory search bar and category filters. */
     private FilteredList<Medicine> filteredData;
 
-    // Built pages cache
+    // --- UI Node Caching ---
+    // These variables store the built layouts for each page. 
+    // This caching prevents redundant FXML/UI recreation and eliminates NullPointerExceptions when switching views.
     private Node dashboardCenter, dashboardRight;
     private Node inventoryCenter, inventoryRight;
     private Node salesCenter, salesRight;
@@ -92,6 +97,11 @@ public class MainController {
     private Label cartTotalLabel;
     private int txnCounter = 0;
 
+    /**
+     * Called automatically after the FXML is loaded.
+     * Initializes the core dashboard UI, populates tables with sample data,
+     * and caches the initial scene graph nodes.
+     */
     @FXML
     public void initialize() {
         // 1. Initialize ComboBox Items
@@ -158,7 +168,9 @@ public class MainController {
         loadSampleTransactions();
     }
 
-    // ======================== SAMPLE DATA ========================
+    // ============================================================
+    //                      SAMPLE DATA GENERATION
+    // ============================================================
 
     /**
      * Loads high-quality mock data into the table.
@@ -221,7 +233,9 @@ public class MainController {
         txnCounter = 4;
     }
 
-    // ======================== NAVIGATION ========================
+    // ============================================================
+    //                      NAVIGATION & ROUTING
+    // ============================================================
 
     @FXML private void handleNavDashboard()  { switchPage("dashboard"); }
     @FXML private void handleNavInventory()  { switchPage("inventory"); }
@@ -328,10 +342,13 @@ public class MainController {
         activeNavButton = btn;
     }
 
-    // ======================== DASHBOARD LOGIC ========================
+    // ============================================================
+    //                      DASHBOARD LOGIC
+    // ============================================================
 
     /**
-     * Re-filters the list when search query or filter category changes.
+     * Re-evaluates the FilteredList when the search query or category combo box changes.
+     * Updates the main dashboard table to only display matching items.
      */
     private void applyFilter() {
         String searchText = txtSearch.getText().toLowerCase().trim();
@@ -359,7 +376,8 @@ public class MainController {
     }
 
     /**
-     * Recalculates stats panel.
+     * Recalculates statistics for the top dashboard panel (Total Medicines, Valuation, Out of Stock, etc.).
+     * This is automatically called whenever an item is bought or restocked to ensure real-time accuracy.
      */
     private void updateDashboardStatistics() {
         int total = masterData.size();
@@ -440,7 +458,8 @@ public class MainController {
     }
 
     /**
-     * Handles deleting the currently selected medicine.
+     * Deletes the currently selected medicine from the master dataset.
+     * Prompts the user with a confirmation alert before executing the deletion.
      */
     @FXML
     private void handleDeleteMedicine() {
@@ -463,10 +482,14 @@ public class MainController {
         }
     }
 
-    // ======================== PAGE BUILDERS ========================
+    // ============================================================
+    //                      PAGE BUILDERS
+    // ============================================================
 
     /**
-     * Builds the Inventory Manager page — detailed stock management view.
+     * Constructs the Inventory Manager page programmatically.
+     * This layout provides deep stock management capabilities and a detailed TableView.
+     * The built layout is cached in memory for immediate retrieval upon future navigation.
      */
     private void buildInventoryPage() {
         VBox center = createPageShell("Inventory Manager",
@@ -622,7 +645,9 @@ public class MainController {
     }
 
     /**
-     * Builds the Point of Sale page — shopping cart, checkout, and transaction history.
+     * Constructs the Point of Sale (POS) page programmatically.
+     * Includes a real-time shopping cart, inventory selection, customer association, 
+     * and a dynamic "Change Calculator" that strictly validates payments before checkout.
      */
     private void buildSalesPage() {
         VBox center = createPageShell("Point of Sale",
@@ -769,6 +794,9 @@ public class MainController {
         lblChange.getStyleClass().add("form-label");
         lblChange.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
+        // --- Change Calculator Logic ---
+        // Listens to the tendered text field and compares it to the cart subtotal in real-time.
+        // Provides instant color-coded visual feedback (Green for OK, Red for Insufficient).
         txtTendered.textProperty().addListener((obs, oldV, newV) -> {
             try {
                 double total = 0;
@@ -810,7 +838,7 @@ public class MainController {
 
         footerBar.getChildren().addAll(btnClear, footerSpacer, txtTendered, lblChange, lblTotalTag, lblCartTotal, btnCheckout);
 
-        // ---- Add-to-Cart Action ----
+        // ---- Add-to-Cart Action Engine ----
         btnAddToCart.setOnAction(e -> {
             int selectedIdx = comboMedicine.getSelectionModel().getSelectedIndex();
             if (selectedIdx < 0) {
@@ -1315,10 +1343,17 @@ public class MainController {
         settingsCenter = center;
     }
 
-    // ======================== UI HELPER METHODS ========================
+    // ============================================================
+    //                      UI HELPER METHODS
+    // ============================================================
 
     /**
-     * Creates a standard page shell (VBox with header).
+     * Creates a standardized structural shell for right-side main content pages.
+     * Generates the title, subtitle, and layout padding.
+     *
+     * @param title    The main title of the page.
+     * @param subtitle A short description of the page's purpose.
+     * @return A constructed VBox containing the page header.
      */
     private VBox createPageShell(String title, String subtitle) {
         VBox page = new VBox(20);
@@ -1344,7 +1379,12 @@ public class MainController {
     }
 
     /**
-     * Creates a stat card with accent color.
+     * Creates a stylized metric/statistic card for dashboards.
+     *
+     * @param label      The title of the statistic (e.g., "Total Revenue").
+     * @param value      The value of the statistic (e.g., "$1,000").
+     * @param colorClass The CSS class to apply for color accents (e.g., "stat-card-teal").
+     * @return A VBox acting as the visual card.
      */
     private VBox createStatCard(String label, String value, String colorClass) {
         VBox card = new VBox(5);
@@ -1444,8 +1484,14 @@ public class MainController {
         return combo;
     }
 
-    // ======================== UTILITY ========================
+    // ============================================================
+    //                      UTILITY & CALCULATIONS
+    // ============================================================
 
+    /**
+     * Calculates the number of items that have low stock (between 1 and 29 units).
+     * @return The count of low stock items.
+     */
     private int countLowStock() {
         int count = 0;
         for (Medicine m : masterData) if (m.getStock() > 0 && m.getStock() < 30) count++;

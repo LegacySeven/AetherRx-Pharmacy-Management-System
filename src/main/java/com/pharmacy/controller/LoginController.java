@@ -12,17 +12,26 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
+/**
+ * Controller responsible for handling the authentication flow.
+ * Validates user credentials and transitions to the main dashboard application upon success.
+ */
 public class LoginController {
 
     @FXML private AnchorPane rootPane;
     @FXML private TextField txtUsername;
     @FXML private PasswordField txtPassword;
 
+    /**
+     * Handles the login button click or Enter key submission.
+     * Validates the provided credentials against the hardcoded admin accounts.
+     */
     @FXML
     private void handleLogin() {
         String username = txtUsername.getText();
         String password = txtPassword.getText();
 
+        // Validate credentials (hardcoded for demonstration purposes)
         if ("admin".equals(username) && "admin".equals(password)) {
             loadDashboard();
         } else {
@@ -30,14 +39,20 @@ public class LoginController {
         }
     }
 
+    /**
+     * Loads the primary dashboard view (main.fxml) and closes the login window.
+     * Injects necessary CSS and application icons into the new Stage.
+     */
     private void loadDashboard() {
         try {
+            // Load the main dashboard UI hierarchy
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/pharmacy/view/main.fxml"));
             Parent root = loader.load();
 
             Stage stage = new Stage();
             stage.setTitle("AetherRx \u2014 Pharmacy Management System");
             
+            // Apply the custom application icon to the window
             java.net.URL iconUrl = getClass().getResource("/com/pharmacy/icon.png");
             if (iconUrl != null) {
                 stage.getIcons().add(new javafx.scene.image.Image(iconUrl.toExternalForm()));
@@ -67,6 +82,12 @@ public class LoginController {
         }
     }
 
+    /**
+     * Displays an error alert dialog to the user.
+     *
+     * @param title   The title of the alert window.
+     * @param content The descriptive error message to display.
+     */
     private void showAlert(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);

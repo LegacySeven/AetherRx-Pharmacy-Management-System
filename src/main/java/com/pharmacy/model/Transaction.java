@@ -17,6 +17,14 @@ public class Transaction {
     private final SimpleIntegerProperty itemCount;
     private final ObservableList<CartItem> items;
 
+    /**
+     * Constructs a new Transaction using the current system time.
+     *
+     * @param txnId      The unique transaction receipt ID.
+     * @param customerId The identifier or name of the customer.
+     * @param items      The list of items purchased.
+     * @param total      The grand total monetary value.
+     */
     public Transaction(String txnId, String customerId, ObservableList<CartItem> items, double total) {
         this.txnId = new SimpleStringProperty(txnId);
         this.dateTime = new SimpleStringProperty(
@@ -28,7 +36,15 @@ public class Transaction {
         this.items = FXCollections.observableArrayList(items);
     }
 
-    /** Constructor with explicit dateTime for sample/historical data. */
+    /**
+     * Constructor with explicit dateTime for loading historical data.
+     *
+     * @param txnId      The unique transaction receipt ID.
+     * @param dateTime   The precise date and time the transaction occurred (yyyy-MM-dd HH:mm).
+     * @param customerId The identifier or name of the customer.
+     * @param items      The list of items purchased.
+     * @param total      The grand total monetary value.
+     */
     public Transaction(String txnId, String dateTime, String customerId, ObservableList<CartItem> items, double total) {
         this.txnId = new SimpleStringProperty(txnId);
         this.dateTime = new SimpleStringProperty(dateTime);
@@ -38,20 +54,26 @@ public class Transaction {
         this.items = FXCollections.observableArrayList(items);
     }
 
+    /** @return The unique receipt identifier. */
     public String getTxnId() { return txnId.get(); }
     public SimpleStringProperty txnIdProperty() { return txnId; }
 
+    /** @return The formatted date and time of the transaction. */
     public String getDateTime() { return dateTime.get(); }
     public SimpleStringProperty dateTimeProperty() { return dateTime; }
 
+    /** @return The customer identifier or "Walk-in". */
     public String getCustomerId() { return customerId.get(); }
     public SimpleStringProperty customerIdProperty() { return customerId; }
 
+    /** @return The total price paid. */
     public double getTotal() { return total.get(); }
     public SimpleDoubleProperty totalProperty() { return total; }
 
+    /** @return The total number of unique items purchased. */
     public int getItemCount() { return itemCount.get(); }
     public SimpleIntegerProperty itemCountProperty() { return itemCount; }
 
+    /** @return An immutable list of the items within this transaction. */
     public ObservableList<CartItem> getItems() { return items; }
 }
