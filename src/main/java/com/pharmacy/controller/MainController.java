@@ -166,6 +166,15 @@ public class MainController {
 
         // 8. Load sample transactions for demo
         loadSampleTransactions();
+
+        // 9. Enforce Role-Based Access Control (RBAC)
+        if (com.pharmacy.util.UserSession.isCashier()) {
+            // Visually indicate restricted pages with lock icons
+            btnInventory.setText("\uD83D\uDD12 Inventory");
+            btnInventory.setOpacity(0.5);
+            btnSettings.setText("\uD83D\uDD12 Settings");
+            btnSettings.setOpacity(0.5);
+        }
     }
 
     // ============================================================
@@ -176,61 +185,28 @@ public class MainController {
      * Loads high-quality mock data into the table.
      */
     private void loadSampleData() {
-        masterData.add(new Medicine("MED001", "Paracetamol 500mg", "Analgesics", 120, "In Stock", 2.50));
-        masterData.add(new Medicine("MED002", "Amoxicillin 250mg", "Antibiotics", 45, "In Stock", 8.20));
-        masterData.add(new Medicine("MED003", "Ibuprofen 400mg", "Analgesics", 90, "In Stock", 3.10));
-        masterData.add(new Medicine("MED004", "Lipitor 10mg", "Cardiovascular", 0, "Out of Stock", 45.00));
-        masterData.add(new Medicine("MED005", "Metformin 500mg", "Antidiabetic", 75, "In Stock", 12.80));
-        masterData.add(new Medicine("MED006", "Vitamin C 1000mg", "Vitamins", 15, "Low Stock", 5.50));
-        
-        masterData.add(new Medicine("MED007", "Omeprazole 20mg", "Gastrointestinal", 200, "In Stock", 15.00));
-        masterData.add(new Medicine("MED008", "Amlodipine 5mg", "Cardiovascular", 110, "In Stock", 18.50));
-        masterData.add(new Medicine("MED009", "Cetirizine 10mg", "Antihistamines", 180, "In Stock", 6.00));
-        masterData.add(new Medicine("MED010", "Salbutamol Inhaler", "Respiratory", 25, "Low Stock", 35.00));
-        masterData.add(new Medicine("MED011", "Diazepam 5mg", "Neurological", 0, "Out of Stock", 22.00));
-        masterData.add(new Medicine("MED012", "Ciprofloxacin 500mg", "Antibiotics", 85, "In Stock", 14.50));
-        masterData.add(new Medicine("MED013", "Loratadine 10mg", "Antihistamines", 150, "In Stock", 7.20));
-        masterData.add(new Medicine("MED014", "Azithromycin 250mg", "Antibiotics", 40, "In Stock", 25.00));
-        masterData.add(new Medicine("MED015", "Atorvastatin 20mg", "Cardiovascular", 95, "In Stock", 40.00));
-        masterData.add(new Medicine("MED016", "Lisinopril 10mg", "Cardiovascular", 60, "In Stock", 16.50));
-        masterData.add(new Medicine("MED017", "Levothyroxine 50mcg", "Endocrine", 130, "In Stock", 9.80));
-        masterData.add(new Medicine("MED018", "Pantoprazole 40mg", "Gastrointestinal", 145, "In Stock", 17.50));
+        masterData.setAll(com.pharmacy.util.DatabaseManager.loadMedicines());
     }
 
     private void loadSampleCustomers() {
-        customerData.add(new String[]{"C001", "Sarah Johnson", "555-0123", "sarah.j@email.com", "12", "\u20B5342.50"});
-        customerData.add(new String[]{"C002", "Michael Chen", "555-0456", "m.chen@email.com", "8", "\u20B5218.30"});
-        customerData.add(new String[]{"C003", "Emily Davis", "555-0789", "emily.d@email.com", "15", "\u20B5567.80"});
-        customerData.add(new String[]{"C004", "James Wilson", "555-0321", "j.wilson@email.com", "3", "\u20B589.90"});
-        customerData.add(new String[]{"C005", "Maria Garcia", "555-0654", "m.garcia@email.com", "21", "\u20B51,024.60"});
+        customerData.setAll(com.pharmacy.util.DatabaseManager.loadCustomers());
     }
 
     private void loadSampleTransactions() {
-        ObservableList<CartItem> items1 = FXCollections.observableArrayList(
-                new CartItem("MED001", "Paracetamol 500mg", 5, 2.50),
-                new CartItem("MED006", "Vitamin C 1000mg", 3, 5.50)
-        );
-        transactionHistory.add(new Transaction("TXN001", "2025-06-03 14:30", "C001", items1, 29.00));
-
-        ObservableList<CartItem> items2 = FXCollections.observableArrayList(
-                new CartItem("MED002", "Amoxicillin 250mg", 2, 8.20),
-                new CartItem("MED005", "Metformin 500mg", 1, 12.80)
-        );
-        transactionHistory.add(new Transaction("TXN002", "2025-06-03 11:15", "", items2, 29.20));
-
-        ObservableList<CartItem> items3 = FXCollections.observableArrayList(
-                new CartItem("MED003", "Ibuprofen 400mg", 4, 3.10)
-        );
-        transactionHistory.add(new Transaction("TXN003", "2025-06-02 16:45", "C003", items3, 12.40));
-
-        ObservableList<CartItem> items4 = FXCollections.observableArrayList(
-                new CartItem("MED001", "Paracetamol 500mg", 10, 2.50),
-                new CartItem("MED003", "Ibuprofen 400mg", 6, 3.10),
-                new CartItem("MED005", "Metformin 500mg", 2, 12.80)
-        );
-        transactionHistory.add(new Transaction("TXN004", "2025-06-01 09:20", "C002", items4, 69.20));
-
-        txnCounter = 4;
+        transactionHistory.setAll(com.pharmacy.util.DatabaseManager.loadTransactions());
+        if (!transactionHistory.isEmpty()) {
+            // Find the highest transaction ID to set the counter
+            int maxId = 0;
+            for (Transaction t : transactionHistory) {
+                try {
+                    int id = Integer.parseInt(t.getTxnId().replace("TXN", ""));
+                    if (id > maxId) maxId = id;
+                } catch (Exception ignored) {}
+            }
+            txnCounter = maxId;
+        } else {
+            txnCounter = 0;
+        }
     }
 
     // ============================================================
@@ -248,6 +224,14 @@ public class MainController {
      * updates navigation button active states.
      */
     private void switchPage(String page) {
+        // RBAC: Block Cashier from restricted pages
+        if (com.pharmacy.util.UserSession.isCashier() && ("inventory".equals(page) || "settings".equals(page))) {
+            showAlert("Access Denied",
+                    "\uD83D\uDD12 This section requires Administrator privileges.\n\nPlease contact your Admin to access this feature.",
+                    Alert.AlertType.WARNING);
+            return;
+        }
+
         // Update active button highlight
         Button targetButton;
         switch (page) {
@@ -305,6 +289,9 @@ public class MainController {
 
     @FXML
     private void handleLogout() {
+        // Clear the active user session
+        com.pharmacy.util.UserSession.logout();
+
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/pharmacy/view/login.fxml"));
             javafx.scene.Parent root = loader.load();
@@ -440,7 +427,13 @@ public class MainController {
             }
 
             Medicine newMed = new Medicine(code, name, category, stock, status, price);
-            masterData.add(newMed);
+            try {
+                com.pharmacy.util.DatabaseManager.addMedicine(newMed);
+                masterData.add(newMed);
+            } catch (java.sql.SQLException ex) {
+                showAlert("Database Error", "Failed to save medicine to database: " + ex.getMessage(), Alert.AlertType.ERROR);
+                return;
+            }
 
             // Clear inputs
             txtCode.clear();
@@ -476,9 +469,14 @@ public class MainController {
         
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            masterData.remove(selected);
-            updateDashboardStatistics();
-            showAlert("Deleted", "Medicine removed successfully.", Alert.AlertType.INFORMATION);
+            try {
+                com.pharmacy.util.DatabaseManager.deleteMedicine(selected.getCode());
+                masterData.remove(selected);
+                updateDashboardStatistics();
+                showAlert("Deleted", "Medicine removed successfully.", Alert.AlertType.INFORMATION);
+            } catch (java.sql.SQLException ex) {
+                showAlert("Database Error", "Failed to delete from database: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
         }
     }
 
@@ -616,11 +614,20 @@ public class MainController {
                     showAlert("Invalid Input", "Stock cannot be negative.", Alert.AlertType.ERROR);
                     return;
                 }
-                selected.setStock(newStock);
-                if (newStock == 0) selected.setStatus("Out of Stock");
-                else if (newStock < 30) selected.setStatus("Low Stock");
-                else selected.setStatus("In Stock");
-                detailedTable.refresh();
+                String status = "In Stock";
+                if (newStock == 0) status = "Out of Stock";
+                else if (newStock < 30) status = "Low Stock";
+                
+                try {
+                    com.pharmacy.util.DatabaseManager.updateMedicineStock(selected.getCode(), newStock, status);
+                    selected.setStock(newStock);
+                    selected.setStatus(status);
+                    detailedTable.refresh();
+                } catch (java.sql.SQLException ex) {
+                    showAlert("Database Error", "Failed to update stock in database: " + ex.getMessage(), Alert.AlertType.ERROR);
+                    return;
+                }
+                
                 txtNewStock.clear();
                 updateDashboardStatistics();
                 showAlert("Success", selected.getName() + " restocked to " + newStock + " units.", Alert.AlertType.INFORMATION);
@@ -929,27 +936,39 @@ public class MainController {
                 }
             }
 
-            // Deduct stock from inventory
-            for (CartItem item : cartItems) {
-                for (Medicine m : masterData) {
-                    if (m.getCode().equals(item.getCode())) {
-                        int newStock = m.getStock() - item.getQuantity();
-                        m.setStock(Math.max(0, newStock));
-                        if (m.getStock() == 0) m.setStatus("Out of Stock");
-                        else if (m.getStock() < 30) m.setStatus("Low Stock");
-                        else m.setStatus("In Stock");
-                        break;
-                    }
-                }
-            }
-
             // Record transaction
             txnCounter++;
             String txnId = String.format("TXN%03d", txnCounter);
             String custId = txtCustId.getText().trim();
             Transaction txn = new Transaction(txnId, custId,
                     FXCollections.observableArrayList(cartItems), total);
-            transactionHistory.add(0, txn);
+                    
+            try {
+                com.pharmacy.util.DatabaseManager.saveTransaction(txn);
+                
+                // Deduct stock from inventory
+                for (CartItem item : cartItems) {
+                    for (Medicine m : masterData) {
+                        if (m.getCode().equals(item.getCode())) {
+                            int newStock = m.getStock() - item.getQuantity();
+                            newStock = Math.max(0, newStock);
+                            String status = "In Stock";
+                            if (newStock == 0) status = "Out of Stock";
+                            else if (newStock < 30) status = "Low Stock";
+                            
+                            com.pharmacy.util.DatabaseManager.updateMedicineStock(m.getCode(), newStock, status);
+                            
+                            m.setStock(newStock);
+                            m.setStatus(status);
+                            break;
+                        }
+                    }
+                }
+                transactionHistory.add(0, txn);
+            } catch (java.sql.SQLException ex) {
+                showAlert("Database Error", "Failed to save sale to database: " + ex.getMessage(), Alert.AlertType.ERROR);
+                return;
+            }
 
             // Clear cart and refresh
             cartItems.clear();
@@ -1210,8 +1229,13 @@ public class MainController {
             confirm.setContentText("Remove customer " + selected[1] + " from records?");
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                customerData.remove(selected);
-                showAlert("Deleted", "Customer removed successfully.", Alert.AlertType.INFORMATION);
+                try {
+                    com.pharmacy.util.DatabaseManager.deleteCustomer(selected[0]);
+                    customerData.remove(selected);
+                    showAlert("Deleted", "Customer removed successfully.", Alert.AlertType.INFORMATION);
+                } catch (java.sql.SQLException ex) {
+                    showAlert("Database Error", "Failed to delete customer: " + ex.getMessage(), Alert.AlertType.ERROR);
+                }
             }
         });
         Region fSpacer = new Region();
@@ -1243,12 +1267,18 @@ public class MainController {
                 showAlert("Validation Error", "Customer ID and Name are required.", Alert.AlertType.ERROR);
                 return;
             }
-            customerData.add(new String[]{
+            String[] newCust = new String[]{
                     tId.getText().trim(), tName.getText().trim(),
                     tPhone.getText().trim(), tEmail.getText().trim(), "0", "\u20B50.00"
-            });
-            tId.clear(); tName.clear(); tPhone.clear(); tEmail.clear();
-            showAlert("Success", "Customer registered successfully!", Alert.AlertType.INFORMATION);
+            };
+            try {
+                com.pharmacy.util.DatabaseManager.addCustomer(newCust);
+                customerData.add(newCust);
+                tId.clear(); tName.clear(); tPhone.clear(); tEmail.clear();
+                showAlert("Success", "Customer registered successfully!", Alert.AlertType.INFORMATION);
+            } catch (java.sql.SQLException ex) {
+                showAlert("Database Error", "Failed to register customer: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
         });
 
         Region spacer = new Region();

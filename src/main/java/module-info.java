@@ -3,6 +3,7 @@ module com.pharmacy {
     requires javafx.fxml;
     requires transitive javafx.graphics;
     requires transitive javafx.base;
+    requires java.sql;
     
     // Allow JavaFX runtime to access main App class
     exports com.pharmacy;
@@ -15,4 +16,7 @@ module com.pharmacy {
     // Allow TableView to reflectively read property fields from models
     exports com.pharmacy.model;
     opens com.pharmacy.model to javafx.base;
+    
+    // Allow controllers to access utility classes (DatabaseManager, UserSession)
+    exports com.pharmacy.util;
 }

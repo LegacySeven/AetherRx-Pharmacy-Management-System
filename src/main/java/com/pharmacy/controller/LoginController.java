@@ -24,18 +24,27 @@ public class LoginController {
 
     /**
      * Handles the login button click or Enter key submission.
-     * Validates the provided credentials against the hardcoded admin accounts.
+     * Validates the provided credentials against the SQLite user database.
      */
     @FXML
     private void handleLogin() {
-        String username = txtUsername.getText();
+        String username = txtUsername.getText().trim();
         String password = txtPassword.getText();
 
-        // Validate credentials (hardcoded for demonstration purposes)
-        if ("admin".equals(username) && "admin".equals(password)) {
+        if (username.isEmpty() || password.isEmpty()) {
+            showAlert("Login Failed", "Please enter both username and password.");
+            return;
+        }
+
+        // Authenticate against the database
+        String role = com.pharmacy.util.DatabaseManager.authenticateUser(username, password);
+
+        if (role != null) {
+            // Store the session globally
+            com.pharmacy.util.UserSession.login(username, role);
             loadDashboard();
         } else {
-            showAlert("Login Failed", "Invalid username or password. Try admin/admin.");
+            showAlert("Login Failed", "Invalid username or password.\n\nHint: admin/admin123 or cashier/cashier123");
         }
     }
 

@@ -22,6 +22,9 @@ public class App extends Application {
      */
     @Override
     public void start(Stage stage) {
+        // Initialize local SQLite database
+        com.pharmacy.util.DatabaseManager.initializeDatabase();
+        
         try {
             // Attempt to locate and load the login FXML view
             URL fxmlUrl = getClass().getResource("/com/pharmacy/view/login.fxml");
