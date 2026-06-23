@@ -1,9 +1,9 @@
-# AetherRx Environment Diagnostics Script
+# Pharmacy Management System Environment Diagnostics Script
 # Checks Java, JavaFX availability, and Maven configurations.
 
 Clear-Host
 Write-Host "=================================================================" -ForegroundColor Cyan
-Write-Host "         AETHERRX JAVA & JAVAFX ENVIRONMENT DIAGNOSTICS" -ForegroundColor Cyan
+Write-Host "         PHARMACY MANAGEMENT SYSTEM JAVA & JAVAFX ENVIRONMENT DIAGNOSTICS" -ForegroundColor Cyan
 Write-Host "=================================================================" -ForegroundColor Cyan
 Write-Host ""
 

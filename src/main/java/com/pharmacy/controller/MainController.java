@@ -19,7 +19,7 @@ import java.net.URL;
 import java.util.Optional;
 
 /**
- * Core Controller for the AetherRx Pharmacy Management System.
+ * Core Controller for the Pharmacy Management System.
  * Manages the global state, navigation routing, the Point of Sale (POS) cart, 
  * transaction history, and dynamic view rendering via Node caching.
  */
@@ -41,6 +41,10 @@ public class MainController {
     @FXML private Label lblOutofStock;
     @FXML private Label lblTotalValuation;
 
+
+    // --- Dashboard: Revenue Chart ---
+    @FXML private javafx.scene.chart.LineChart<String, Number> revenueChart;
+
     // --- Dashboard: Search & Filters ---
     @FXML private TextField txtSearch;
     @FXML private ComboBox<String> comboFilterCategory;
@@ -60,6 +64,7 @@ public class MainController {
     @FXML private ComboBox<String> comboFormCategory;
     @FXML private TextField txtStock;
     @FXML private TextField txtPrice;
+
 
     // --- Layout Containers (for page swapping) ---
     @FXML private VBox centerContent;
@@ -297,7 +302,7 @@ public class MainController {
             javafx.scene.Parent root = loader.load();
             
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Login \u2014 AetherRx");
+            stage.setTitle("Login \u2014 Pharmacy Management System");
             
             java.net.URL iconUrl = getClass().getResource("/com/pharmacy/icon.png");
             if (iconUrl != null) {
@@ -386,10 +391,36 @@ public class MainController {
         lblOutofStock.setText(String.valueOf(outOfStock));
         lblTotalValuation.setText(String.format("\u20B5%.2f", totalValuation));
 
+
+
+        // Update revenue chart
+        populateRevenueChart();
+
         // Sync Inventory page stats dynamically
         if (lblInvLowStock != null) lblInvLowStock.setText(String.valueOf(lowStock));
         if (lblInvOutOfStock != null) lblInvOutOfStock.setText(String.valueOf(outOfStock));
         if (inventoryAlertsBox != null) refreshInventoryAlerts();
+    }
+
+    /**
+     * Populates the dashboard revenue line chart with data from the last 7 days.
+     */
+    private void populateRevenueChart() {
+        if (revenueChart == null) return;
+        revenueChart.getData().clear();
+
+        java.util.Map<String, Double> revenue = com.pharmacy.util.DatabaseManager.getRevenueByDay(7);
+
+        javafx.scene.chart.XYChart.Series<String, Number> series = new javafx.scene.chart.XYChart.Series<>();
+        series.setName("Daily Revenue");
+
+        for (java.util.Map.Entry<String, Double> entry : revenue.entrySet()) {
+            // Show only the month-day portion for cleaner labels
+            String label = entry.getKey().substring(5); // "MM-dd"
+            series.getData().add(new javafx.scene.chart.XYChart.Data<>(label, entry.getValue()));
+        }
+
+        revenueChart.getData().add(series);
     }
 
     /**
@@ -426,6 +457,8 @@ public class MainController {
                 status = "Low Stock";
             }
 
+
+
             Medicine newMed = new Medicine(code, name, category, stock, status, price);
             try {
                 com.pharmacy.util.DatabaseManager.addMedicine(newMed);
@@ -441,6 +474,7 @@ public class MainController {
             comboFormCategory.setValue(null);
             txtStock.clear();
             txtPrice.clear();
+
 
             updateDashboardStatistics();
             showAlert("Success", "Medicine successfully added to inventory!", Alert.AlertType.INFORMATION);
@@ -572,6 +606,9 @@ public class MainController {
         detailedTable.getColumns().add(cStock);
         detailedTable.getColumns().add(cStatus);
         detailedTable.getColumns().add(cPrice);
+
+
+
         detailedTable.getColumns().add(cValue);
         detailedTable.setItems(masterData);
 
@@ -579,12 +616,22 @@ public class MainController {
         tableWrap.getStyleClass().add("table-container");
         VBox.setVgrow(tableWrap, Priority.ALWAYS);
 
-        // Footer
+        // Footer with Export CSV button
         HBox footer = new HBox(10);
         footer.setAlignment(Pos.CENTER_LEFT);
         Label footerText = new Label("Inventory is synced with the Dashboard in real-time.");
         footerText.getStyleClass().add("footer-help-text");
-        footer.getChildren().add(footerText);
+        Region footerSpacer = new Region();
+        HBox.setHgrow(footerSpacer, Priority.ALWAYS);
+        Button btnExportInv = new Button("\uD83D\uDCE5 Export CSV");
+        btnExportInv.getStyleClass().add("action-button-add");
+        btnExportInv.setPrefHeight(36);
+        btnExportInv.setOnAction(e -> {
+            javafx.stage.Stage stage = (javafx.stage.Stage) rootPane.getScene().getWindow();
+            com.pharmacy.util.CsvExporter.exportInventory(masterData, stage);
+            showAlert("Export Complete", "Inventory data exported successfully!", Alert.AlertType.INFORMATION);
+        });
+        footer.getChildren().addAll(footerText, footerSpacer, btnExportInv);
 
         center.getChildren().addAll(cards, tableWrap, footer);
 
@@ -1093,7 +1140,17 @@ public class MainController {
         summaryRev.getStyleClass().add("form-label");
         summaryCard.getChildren().addAll(summaryTitle, summaryCount, summaryRev);
 
-        right.getChildren().addAll(comboTimeFilter, txnTableWrap, btnViewReceipt, summaryCard);
+        Button btnExportSales = new Button("\uD83D\uDCE5 Export CSV");
+        btnExportSales.getStyleClass().add("action-button-add");
+        btnExportSales.setMaxWidth(Double.MAX_VALUE);
+        btnExportSales.setPrefHeight(38);
+        btnExportSales.setOnAction(e -> {
+            javafx.stage.Stage stage = (javafx.stage.Stage) rootPane.getScene().getWindow();
+            com.pharmacy.util.CsvExporter.exportTransactions(transactionHistory, stage);
+            showAlert("Export Complete", "Transaction data exported successfully!", Alert.AlertType.INFORMATION);
+        });
+
+        right.getChildren().addAll(comboTimeFilter, txnTableWrap, btnViewReceipt, btnExportSales, summaryCard);
 
         salesCenter = center;
         salesRight = right;
@@ -1303,7 +1360,7 @@ public class MainController {
 
         // --- General Settings ---
         VBox generalSection = createSettingsSection("General Settings", "\u2699");
-        HBox genRow1 = createSettingsRow("Pharmacy Name", createSettingsTextField("AetherRx Pharmacy"));
+        HBox genRow1 = createSettingsRow("Pharmacy Name", createSettingsTextField("Pharmacy Management System"));
         HBox genRow2 = createSettingsRow("Address", createSettingsTextField("123 Health Street, Medical District"));
         HBox genRow3 = createSettingsRow("Phone Number", createSettingsTextField("+233 (0) 30 123-4567"));
         HBox genRow4 = createSettingsRow("License Number", createSettingsTextField("PH-2024-0042"));

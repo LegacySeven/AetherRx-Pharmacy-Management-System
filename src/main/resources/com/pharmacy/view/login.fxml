@@ -15,7 +15,7 @@
          <children>
             <VBox alignment="CENTER" spacing="5.0">
                <children>
-                  <Label text="AetherRx" styleClass="brand-title">
+                  <Label text="Pharmacy Management System" styleClass="brand-title">
                      <font>
                         <Font name="Segoe UI Bold" size="28.0" />
                      </font>

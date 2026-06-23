@@ -1,5 +1,5 @@
 @echo off
-title AetherRx - Zero Config Launcher
+title Pharmacy Management System - Zero Config Launcher
 color 0B
 echo =================================================================
 echo        PHARMACY MANAGEMENT SYSTEM - AUTO-CONFIG LAUNCHER

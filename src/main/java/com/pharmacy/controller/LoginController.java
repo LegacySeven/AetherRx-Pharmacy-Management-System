@@ -59,7 +59,7 @@ public class LoginController {
             Parent root = loader.load();
 
             Stage stage = new Stage();
-            stage.setTitle("AetherRx \u2014 Pharmacy Management System");
+            stage.setTitle("Pharmacy Management System");
             
             // Apply the custom application icon to the window
             java.net.URL iconUrl = getClass().getResource("/com/pharmacy/icon.png");

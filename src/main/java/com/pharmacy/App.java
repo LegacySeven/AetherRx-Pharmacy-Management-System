@@ -9,7 +9,7 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Main application launcher for the AetherRx Pharmacy Management System.
+ * Main application launcher for the Pharmacy Management System.
  */
 public class App extends Application {
 
@@ -52,7 +52,7 @@ public class App extends Application {
             }
 
             // Configure the primary stage properties
-            stage.setTitle("Login \u2014 AetherRx");
+            stage.setTitle("Login \u2014 Pharmacy Management System");
             stage.setScene(scene);
             
             // Apply the custom application icon to the window and taskbar

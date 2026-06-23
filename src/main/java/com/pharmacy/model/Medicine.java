@@ -19,12 +19,12 @@ public class Medicine {
     /**
      * Constructs a new Medicine instance.
      *
-     * @param code     The unique alphanumeric identifier for the medicine.
-     * @param name     The display name of the medicine.
-     * @param category The classification or type of the medicine.
-     * @param stock    The initial quantity available in inventory.
-     * @param status   The textual status (e.g., "In Stock", "Low Stock", "Out of Stock").
-     * @param price    The retail price per unit.
+     * @param code       The unique alphanumeric identifier for the medicine.
+     * @param name       The display name of the medicine.
+     * @param category   The classification or type of the medicine.
+     * @param stock      The initial quantity available in inventory.
+     * @param status     The textual status (e.g., "In Stock", "Low Stock", "Out of Stock").
+     * @param price      The retail price per unit.
      */
     public Medicine(String code, String name, String category, int stock, String status, double price) {
         this.code = new SimpleStringProperty(code);

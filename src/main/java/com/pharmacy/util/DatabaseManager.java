@@ -7,23 +7,19 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.sql.*;
-
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Manages the SQLite embedded database connection and provides methods
  * for querying, inserting, and seeding the data.
  */
 public class DatabaseManager {
-    private static final String URL = "jdbc:sqlite:aether_rx.db";
+    private static final String URL = "jdbc:sqlite:pharmacy.db";
 
-    /**
-     * Initializes the database tables. If the database is empty, it seeds it
-     * with default mock data for demonstration.
-     */
     public static void initializeDatabase() {
         try (Connection conn = DriverManager.getConnection(URL)) {
             if (conn != null) {
-                // Create tables
                 try (Statement stmt = conn.createStatement()) {
                     // Medicines Table
                     stmt.execute("CREATE TABLE IF NOT EXISTS medicines (" +
@@ -53,7 +49,7 @@ public class DatabaseManager {
                             "total REAL NOT NULL" +
                             ");");
 
-                    // Transaction Items Table (to store receipt items)
+                    // Transaction Items Table
                     stmt.execute("CREATE TABLE IF NOT EXISTS transaction_items (" +
                             "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                             "txn_id TEXT NOT NULL, " +
@@ -64,7 +60,7 @@ public class DatabaseManager {
                             "FOREIGN KEY (txn_id) REFERENCES transactions (txn_id)" +
                             ");");
 
-                    // Users Table (for Role-Based Access Control)
+                    // Users Table
                     stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
                             "username TEXT PRIMARY KEY, " +
                             "password TEXT NOT NULL, " +
@@ -72,19 +68,10 @@ public class DatabaseManager {
                             ");");
                 }
 
-                // Seed data if the database is brand new
-                if (isTableEmpty(conn, "medicines")) {
-                    seedMedicines(conn);
-                }
-                if (isTableEmpty(conn, "customers")) {
-                    seedCustomers(conn);
-                }
-                if (isTableEmpty(conn, "transactions")) {
-                    seedTransactions(conn);
-                }
-                if (isTableEmpty(conn, "users")) {
-                    seedUsers(conn);
-                }
+                if (isTableEmpty(conn, "medicines")) seedMedicines(conn);
+                if (isTableEmpty(conn, "customers")) seedCustomers(conn);
+                if (isTableEmpty(conn, "transactions")) seedTransactions(conn);
+                if (isTableEmpty(conn, "users")) seedUsers(conn);
             }
         } catch (SQLException e) {
             System.err.println("Database Initialization Error: " + e.getMessage());
@@ -141,11 +128,8 @@ public class DatabaseManager {
         String sql = "INSERT INTO customers (id, name, phone, email, purchases, spent) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             Object[][] initialData = {
-                {"C001", "Emma Watson", "555-0101", "emma@email.com", "12", "\u20B5450.20"},
-                {"C002", "Michael B. Jordan", "555-0202", "michael@email.com", "4", "\u20B5120.00"},
-                {"C003", "Sarah Connor", "555-0303", "sarah@email.com", "8", "\u20B5340.50"},
-                {"C004", "Tom Hanks", "555-0404", "tom@email.com", "2", "\u20B545.00"},
-                {"C005", "Zendaya Coleman", "555-0505", "zendaya@email.com", "15", "\u20B5890.75"}
+                {"C001", "John Doe", "0501234567", "john@email.com", "5", "120.50"},
+                {"C002", "Jane Smith", "0249876543", "jane@email.com", "2", "45.00"}
             };
             for (Object[] row : initialData) {
                 pstmt.setString(1, (String) row[0]);
@@ -160,52 +144,21 @@ public class DatabaseManager {
     }
 
     private static void seedTransactions(Connection conn) throws SQLException {
-        String sql = "INSERT INTO transactions (txn_id, customer_id, date_time, total) VALUES (?, ?, ?, ?)";
-        String itemSql = "INSERT INTO transaction_items (txn_id, code, name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement pstmt = conn.prepareStatement(sql);
-             PreparedStatement pItem = conn.prepareStatement(itemSql)) {
+        // No initial transactions needed
+    }
+
+    private static void seedUsers(Connection conn) throws SQLException {
+        String sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, "admin");
+            pstmt.setString(2, "admin123");
+            pstmt.setString(3, "Admin");
+            pstmt.executeUpdate();
             
-            // Txn 1
-            pstmt.setString(1, "TXN001");
-            pstmt.setString(2, "C001");
-            pstmt.setString(3, "2026-06-15 14:30");
-            pstmt.setDouble(4, 25.00);
+            pstmt.setString(1, "cashier");
+            pstmt.setString(2, "cashier123");
+            pstmt.setString(3, "Cashier");
             pstmt.executeUpdate();
-
-            pItem.setString(1, "TXN001");
-            pItem.setString(2, "MED001");
-            pItem.setString(3, "Paracetamol 500mg");
-            pItem.setInt(4, 10);
-            pItem.setDouble(5, 2.50);
-            pItem.executeUpdate();
-
-            // Txn 2
-            pstmt.setString(1, "TXN002");
-            pstmt.setString(2, "Walk-in");
-            pstmt.setString(3, "2026-06-16 09:15");
-            pstmt.setDouble(4, 35.00);
-            pstmt.executeUpdate();
-
-            pItem.setString(1, "TXN002");
-            pItem.setString(2, "MED010");
-            pItem.setString(3, "Salbutamol Inhaler");
-            pItem.setInt(4, 1);
-            pItem.setDouble(5, 35.00);
-            pItem.executeUpdate();
-
-            // Txn 3
-            pstmt.setString(1, "TXN003");
-            pstmt.setString(2, "C005");
-            pstmt.setString(3, "2026-06-17 11:45");
-            pstmt.setDouble(4, 45.00);
-            pstmt.executeUpdate();
-
-            pItem.setString(1, "TXN003");
-            pItem.setString(2, "MED004");
-            pItem.setString(3, "Lipitor 10mg");
-            pItem.setInt(4, 1);
-            pItem.setDouble(5, 45.00);
-            pItem.executeUpdate();
         }
     }
 
@@ -259,30 +212,30 @@ public class DatabaseManager {
 
     public static ObservableList<Transaction> loadTransactions() {
         ObservableList<Transaction> list = FXCollections.observableArrayList();
-        String sqlTxn = "SELECT * FROM transactions ORDER BY txn_id DESC";
-        String sqlItem = "SELECT * FROM transaction_items WHERE txn_id = ?";
-
+        String sqlTxn = "SELECT * FROM transactions ORDER BY date_time DESC";
+        String sqlItems = "SELECT * FROM transaction_items WHERE txn_id = ?";
+        
         try (Connection conn = DriverManager.getConnection(URL);
              Statement stmtTxn = conn.createStatement();
-             ResultSet rsTxn = stmtTxn.executeQuery(sqlTxn);
-             PreparedStatement pItem = conn.prepareStatement(sqlItem)) {
-
+             ResultSet rsTxn = stmtTxn.executeQuery(sqlTxn)) {
+             
             while (rsTxn.next()) {
                 String txnId = rsTxn.getString("txn_id");
-                
-                // Fetch items for this transaction
-                pItem.setString(1, txnId);
-                ResultSet rsItem = pItem.executeQuery();
                 ObservableList<CartItem> items = FXCollections.observableArrayList();
-                while (rsItem.next()) {
-                    items.add(new CartItem(
-                            rsItem.getString("code"),
-                            rsItem.getString("name"),
-                            rsItem.getInt("quantity"),
-                            rsItem.getDouble("unit_price")
-                    ));
+                
+                try (PreparedStatement pstmtItems = conn.prepareStatement(sqlItems)) {
+                    pstmtItems.setString(1, txnId);
+                    ResultSet rsItems = pstmtItems.executeQuery();
+                    while (rsItems.next()) {
+                        items.add(new CartItem(
+                                rsItems.getString("code"),
+                                rsItems.getString("name"),
+                                rsItems.getInt("quantity"),
+                                rsItems.getDouble("unit_price")
+                        ));
+                    }
                 }
-
+                
                 Transaction t = new Transaction(
                         txnId,
                         rsTxn.getString("date_time"),
@@ -336,16 +289,16 @@ public class DatabaseManager {
         }
     }
 
-    public static void addCustomer(String[] c) throws SQLException {
+    public static void addCustomer(String[] custData) throws SQLException {
         String sql = "INSERT INTO customers (id, name, phone, email, purchases, spent) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DriverManager.getConnection(URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, c[0]);
-            pstmt.setString(2, c[1]);
-            pstmt.setString(3, c[2]);
-            pstmt.setString(4, c[3]);
-            pstmt.setString(5, c[4]);
-            pstmt.setString(6, c[5]);
+            pstmt.setString(1, custData[0]);
+            pstmt.setString(2, custData[1]);
+            pstmt.setString(3, custData[2]);
+            pstmt.setString(4, custData[3]);
+            pstmt.setString(5, custData[4]);
+            pstmt.setString(6, custData[5]);
             pstmt.executeUpdate();
         }
     }
@@ -359,64 +312,33 @@ public class DatabaseManager {
         }
     }
 
-    public static void saveTransaction(Transaction txn) throws SQLException {
-        String sql = "INSERT INTO transactions (txn_id, customer_id, date_time, total) VALUES (?, ?, ?, ?)";
-        String itemSql = "INSERT INTO transaction_items (txn_id, code, name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(URL);
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             PreparedStatement pItem = conn.prepareStatement(itemSql)) {
-            
-            // Save transaction
-            pstmt.setString(1, txn.getTxnId());
-            pstmt.setString(2, txn.getCustomerId());
-            pstmt.setString(3, txn.getDateTime());
-            pstmt.setDouble(4, txn.getTotal());
-            pstmt.executeUpdate();
-
-            // Save items
-            for (CartItem item : txn.getItems()) {
-                pItem.setString(1, txn.getTxnId());
-                pItem.setString(2, item.getCode());
-                pItem.setString(3, item.getName());
-                pItem.setInt(4, item.getQuantity());
-                pItem.setDouble(5, item.getUnitPrice());
-                pItem.executeUpdate();
+    public static void saveTransaction(Transaction t) throws SQLException {
+        String sqlTxn = "INSERT INTO transactions (txn_id, customer_id, date_time, total) VALUES (?, ?, ?, ?)";
+        String sqlItem = "INSERT INTO transaction_items (txn_id, code, name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
+        
+        try (Connection conn = DriverManager.getConnection(URL)) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement pTxn = conn.prepareStatement(sqlTxn)) {
+                pTxn.setString(1, t.getTxnId());
+                pTxn.setString(2, t.getCustomerId());
+                pTxn.setString(3, t.getDateTime());
+                pTxn.setDouble(4, t.getTotal());
+                pTxn.executeUpdate();
             }
+            try (PreparedStatement pItem = conn.prepareStatement(sqlItem)) {
+                for (CartItem item : t.getItems()) {
+                    pItem.setString(1, t.getTxnId());
+                    pItem.setString(2, item.getCode());
+                    pItem.setString(3, item.getName());
+                    pItem.setInt(4, item.getQuantity());
+                    pItem.setDouble(5, item.getUnitPrice());
+                    pItem.executeUpdate();
+                }
+            }
+            conn.commit();
         }
     }
 
-    // ==========================================================
-    //                        USER AUTHENTICATION
-    // ==========================================================
-
-    /**
-     * Seeds default user accounts for Role-Based Access Control.
-     * Creates one Admin and one Cashier account for demonstration.
-     */
-    private static void seedUsers(Connection conn) throws SQLException {
-        String sql = "INSERT INTO users (username, password, role) VALUES (?, ?, ?)";
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            // Admin account
-            pstmt.setString(1, "admin");
-            pstmt.setString(2, "admin123");
-            pstmt.setString(3, "Admin");
-            pstmt.executeUpdate();
-
-            // Cashier account
-            pstmt.setString(1, "cashier");
-            pstmt.setString(2, "cashier123");
-            pstmt.setString(3, "Cashier");
-            pstmt.executeUpdate();
-        }
-    }
-
-    /**
-     * Authenticates a user against the database.
-     *
-     * @param username The username entered at the login screen.
-     * @param password The password entered at the login screen.
-     * @return The user's role ("Admin" or "Cashier") if credentials are valid, or null if invalid.
-     */
     public static String authenticateUser(String username, String password) {
         String sql = "SELECT role FROM users WHERE username = ? AND password = ?";
         try (Connection conn = DriverManager.getConnection(URL);
@@ -431,5 +353,38 @@ public class DatabaseManager {
             e.printStackTrace();
         }
         return null;
+    }
+
+    // ==========================================================
+    //                        REVENUE ANALYTICS
+    // ==========================================================
+
+    public static Map<String, Double> getRevenueByDay(int days) {
+        Map<String, Double> revenue = new LinkedHashMap<>();
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        for (int i = days - 1; i >= 0; i--) {
+            revenue.put(today.minusDays(i).toString(), 0.0);
+        }
+
+        String sql = "SELECT date(date_time) as day, SUM(total) as daily_total " +
+                     "FROM transactions " +
+                     "WHERE date(date_time) >= date('now', '-' || ? || ' days') " +
+                     "GROUP BY day ORDER BY day ASC";
+        try (Connection conn = DriverManager.getConnection(URL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, days);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                String day = rs.getString("day");
+                double total = rs.getDouble("daily_total");
+                if (day != null) {
+                    revenue.put(day, total);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return revenue;
     }
 }
