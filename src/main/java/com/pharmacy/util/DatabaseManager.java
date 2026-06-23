@@ -222,13 +222,14 @@ public class DatabaseManager {
         }
     }
 
-    public static void updateMedicineStock(String code, int newStock, String newStatus) throws SQLException {
-        String sql = "UPDATE medicines SET stock = ?, status = ? WHERE code = ?";
+    public static void updateMedicineStockAndPrice(String code, int newStock, double newPrice, String newStatus) throws SQLException {
+        String sql = "UPDATE medicines SET stock = ?, price = ?, status = ? WHERE code = ?";
         try (Connection conn = DriverManager.getConnection(URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, newStock);
-            pstmt.setString(2, newStatus);
-            pstmt.setString(3, code);
+            pstmt.setDouble(2, newPrice);
+            pstmt.setString(3, newStatus);
+            pstmt.setString(4, code);
             pstmt.executeUpdate();
         }
     }

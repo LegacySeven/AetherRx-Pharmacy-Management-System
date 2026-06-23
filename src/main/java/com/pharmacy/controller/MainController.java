@@ -611,7 +611,6 @@ public class MainController {
         VBox right = createRightPanelShell("Register Medicine", "Add a new formulation to inventory");
 
         // --- Add Medicine Form ---
-        VBox fldCode = createFormField("Medicine Code", "e.g. MED019");
         VBox fldName = createFormField("Medicine Name", "e.g. Advil 200mg");
 
         VBox fldCategory = new VBox(5);
@@ -634,22 +633,41 @@ public class MainController {
         btnAddMed.setMaxWidth(Double.MAX_VALUE);
         btnAddMed.setPrefHeight(44);
         btnAddMed.setOnAction(e -> {
-            TextField tCode = (TextField) fldCode.getChildren().get(1);
             TextField tName = (TextField) fldName.getChildren().get(1);
             String category = comboAddCat.getValue();
             TextField tStock = (TextField) fldStock.getChildren().get(1);
             TextField tPrice = (TextField) fldPrice.getChildren().get(1);
 
-            String code = tCode.getText().trim();
             String name = tName.getText().trim();
             String stockStr = tStock.getText().trim();
             String priceStr = tPrice.getText().trim();
 
-            if (code.isEmpty() || name.isEmpty() || category == null || stockStr.isEmpty() || priceStr.isEmpty()) {
+            if (name.isEmpty() || category == null || stockStr.isEmpty() || priceStr.isEmpty()) {
                 showAlert("Input Validation Error", "All fields are required to register a medicine.",
                         Alert.AlertType.ERROR);
                 return;
             }
+
+            // Check for duplicate name
+            for (Medicine m : masterData) {
+                if (m.getName().equalsIgnoreCase(name)) {
+                    showAlert("Duplicate Medicine", "A medicine with the name '" + name + "' already exists in the inventory.", Alert.AlertType.ERROR);
+                    return;
+                }
+            }
+
+            // Auto-generate code
+            int maxId = 0;
+            for (Medicine m : masterData) {
+                String c = m.getCode();
+                if (c != null && c.startsWith("MED")) {
+                    try {
+                        int num = Integer.parseInt(c.substring(3));
+                        if (num > maxId) maxId = num;
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            String code = String.format("MED%03d", maxId + 1);
 
             try {
                 int stock = Integer.parseInt(stockStr);
@@ -676,7 +694,6 @@ public class MainController {
                     return;
                 }
 
-                tCode.clear();
                 tName.clear();
                 comboAddCat.setValue(null);
                 tStock.clear();
@@ -693,19 +710,22 @@ public class MainController {
         Separator midSep = new Separator();
         midSep.getStyleClass().add("panel-separator");
 
-        // --- Quick Restock Section ---
-        Label restockTitle = new Label("Quick Restock");
+        // --- Quick Update Section ---
+        Label restockTitle = new Label("Quick Update");
         restockTitle.getStyleClass().add("panel-title");
         restockTitle.setStyle("-fx-font-size: 14px;");
 
-        Label lblSelectInfo = new Label("Select an item from the table, then set the new stock quantity below.");
+        Label lblSelectInfo = new Label("Select an item from the table, then update stock and/or price.");
         lblSelectInfo.getStyleClass().add("form-label");
         lblSelectInfo.setWrapText(true);
 
-        VBox fldNewStock = createFormField("New Stock Quantity", "e.g. 200");
+        VBox fldNewStock = createFormField("New Stock Quantity", "e.g. 200 (Leave empty to skip)");
         TextField txtNewStock = (TextField) fldNewStock.getChildren().get(1);
+        
+        VBox fldNewPrice = createFormField("New Unit Price", "e.g. 15.00 (Leave empty to skip)");
+        TextField txtNewPrice = (TextField) fldNewPrice.getChildren().get(1);
 
-        Button btnRestock = new Button("\u2713 Update Stock");
+        Button btnRestock = new Button("\u2713 Update Medicine");
         btnRestock.getStyleClass().add("action-button-add");
         btnRestock.setMaxWidth(Double.MAX_VALUE);
         btnRestock.setPrefHeight(44);
@@ -716,12 +736,35 @@ public class MainController {
                         Alert.AlertType.WARNING);
                 return;
             }
+            
+            String stockStr = txtNewStock.getText().trim();
+            String priceStr = txtNewPrice.getText().trim();
+            
+            if (stockStr.isEmpty() && priceStr.isEmpty()) {
+                showAlert("No Input", "Please provide a new stock or price to update.", Alert.AlertType.WARNING);
+                return;
+            }
+
             try {
-                int newStock = Integer.parseInt(txtNewStock.getText().trim());
-                if (newStock < 0) {
-                    showAlert("Invalid Input", "Stock cannot be negative.", Alert.AlertType.ERROR);
-                    return;
+                int newStock = selected.getStock();
+                double newPrice = selected.getPrice();
+
+                if (!stockStr.isEmpty()) {
+                    newStock = Integer.parseInt(stockStr);
+                    if (newStock < 0) {
+                        showAlert("Invalid Input", "Stock cannot be negative.", Alert.AlertType.ERROR);
+                        return;
+                    }
                 }
+                
+                if (!priceStr.isEmpty()) {
+                    newPrice = Double.parseDouble(priceStr);
+                    if (newPrice < 0) {
+                        showAlert("Invalid Input", "Price cannot be negative.", Alert.AlertType.ERROR);
+                        return;
+                    }
+                }
+
                 String status = "In Stock";
                 if (newStock == 0)
                     status = "Out of Stock";
@@ -729,22 +772,24 @@ public class MainController {
                     status = "Low Stock";
 
                 try {
-                    com.pharmacy.util.DatabaseManager.updateMedicineStock(selected.getCode(), newStock, status);
+                    com.pharmacy.util.DatabaseManager.updateMedicineStockAndPrice(selected.getCode(), newStock, newPrice, status);
                     selected.setStock(newStock);
+                    selected.setPrice(newPrice);
                     selected.setStatus(status);
                     detailedTable.refresh();
                 } catch (java.sql.SQLException ex) {
-                    showAlert("Database Error", "Failed to update stock in database: " + ex.getMessage(),
+                    showAlert("Database Error", "Failed to update database: " + ex.getMessage(),
                             Alert.AlertType.ERROR);
                     return;
                 }
 
                 txtNewStock.clear();
+                txtNewPrice.clear();
                 updateDashboardStatistics();
-                showAlert("Success", selected.getName() + " restocked to " + newStock + " units.",
+                showAlert("Success", selected.getName() + " updated successfully.",
                         Alert.AlertType.INFORMATION);
             } catch (NumberFormatException ex) {
-                showAlert("Invalid Input", "Please enter a valid integer for stock quantity.", Alert.AlertType.ERROR);
+                showAlert("Invalid Input", "Ensure stock is a whole number and price is a decimal number.", Alert.AlertType.ERROR);
             }
         });
 
@@ -758,9 +803,9 @@ public class MainController {
         refreshInventoryAlerts();
 
         right.getChildren().addAll(
-                fldCode, fldName, fldCategory, fldStock, fldPrice, btnAddMed,
+                fldName, fldCategory, fldStock, fldPrice, btnAddMed,
                 midSep,
-                restockTitle, lblSelectInfo, fldNewStock, btnRestock,
+                restockTitle, lblSelectInfo, fldNewStock, fldNewPrice, btnRestock,
                 spacer, inventoryAlertsBox);
 
         inventoryCenter = center;
@@ -1076,8 +1121,7 @@ public class MainController {
                                 status = "Out of Stock";
                             else if (newStock < 30)
                                 status = "Low Stock";
-
-                            com.pharmacy.util.DatabaseManager.updateMedicineStock(m.getCode(), newStock, status);
+                            com.pharmacy.util.DatabaseManager.updateMedicineStockAndPrice(m.getCode(), newStock, m.getPrice(), status);
 
                             m.setStock(newStock);
                             m.setStatus(status);

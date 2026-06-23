@@ -733,3 +733,44 @@
 .text-danger { -fx-text-fill: -fx-color-rose; }
 .text-muted { -fx-text-fill: -fx-text-muted; }
 .text-primary { -fx-text-fill: -fx-text-primary; }
+
+/* --- TEXT AREA (RECEIPT) --- */
+.text-area {
+    -fx-background-color: -fx-input-bg;
+    -fx-border-color: -fx-border-main;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+}
+.text-area .content {
+    -fx-background-color: transparent;
+}
+.text-area .text {
+    -fx-fill: -fx-text-primary;
+}
+
+/* --- CHARTS --- */
+.chart {
+    -fx-background-color: transparent;
+}
+.chart-title {
+    -fx-text-fill: -fx-text-primary;
+}
+.chart-legend {
+    -fx-background-color: transparent;
+}
+.chart-legend-item {
+    -fx-text-fill: -fx-text-secondary;
+}
+.axis {
+    -fx-tick-label-fill: -fx-text-muted;
+}
+.axis-tick-mark, .axis-minor-tick-mark {
+    -fx-stroke: -fx-border-alt;
+}
+.chart-vertical-grid-lines, .chart-horizontal-grid-lines {
+    -fx-stroke: -fx-border-main;
+}
+.chart-plot-background {
+    -fx-background-color: transparent;
+}
