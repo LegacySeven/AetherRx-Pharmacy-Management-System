@@ -90,9 +90,7 @@ public class MainController {
     private Label cartTotalLabel;
     private int txnCounter = 0;
 
-    // Transaction History stat labels
-    private Label txnTotalCountLabel;
-    private Label txnTotalRevenueLabel;
+    // Transaction History stat labels (removed from class level, demoted to local)
 
     /**
      * Called automatically after the FXML is loaded.
@@ -123,31 +121,43 @@ public class MainController {
     }
 
     // ============================================================
-    // SAMPLE DATA GENERATION
+    // SAMPLE DATA GENERATION & INITIALIZATION
     // ============================================================
 
     /**
-     * Loads inventory data from the database.
+     * Loads the master inventory data from the SQLite database.
+     * This populates the `masterData` observable list which is shared across the UI.
      */
     private void loadSampleData() {
+        // 1. Fetch medicine records from the database and populate the in-memory observable list
         masterData.setAll(com.pharmacy.util.DatabaseManager.loadMedicines());
     }
 
+    /**
+     * Loads historical transaction data from the SQLite database.
+     * Also calculates the highest transaction ID to properly initialize the txnCounter.
+     */
     private void loadSampleTransactions() {
+        // 1. Fetch all previous transactions and populate the history list
         transactionHistory.setAll(com.pharmacy.util.DatabaseManager.loadTransactions());
+        
+        // 2. If transactions exist, find the highest numeric ID to prevent ID collisions
         if (!transactionHistory.isEmpty()) {
-            // Find the highest transaction ID to set the counter
             int maxId = 0;
             for (Transaction t : transactionHistory) {
                 try {
+                    // Extract the numeric portion of "TXN001" -> 1
                     int id = Integer.parseInt(t.getTxnId().replace("TXN", ""));
                     if (id > maxId)
                         maxId = id;
                 } catch (Exception ignored) {
+                    // Ignore parsing errors for malformed IDs
                 }
             }
+            // 3. Set the global counter to the highest found ID
             txnCounter = maxId;
         } else {
+            // 3. Default to 0 if no transactions exist
             txnCounter = 0;
         }
     }
@@ -284,6 +294,13 @@ public class MainController {
         }
     }
 
+    /**
+     * Updates the visual styling of the navigation menu to reflect the active page.
+     * Removes the 'nav-button-active' CSS class from the previously selected button 
+     * and applies it to the newly selected button.
+     *
+     * @param btn The navigation button that was clicked.
+     */
     private void setActiveNavButton(Button btn) {
         if (activeNavButton != null) {
             activeNavButton.getStyleClass().remove("nav-button-active");
@@ -368,8 +385,8 @@ public class MainController {
         dashboardAlertsBox.getChildren().clear();
 
         Label alertTitle = new Label("\u26A0 Low Stock & Out of Stock Alerts");
-        alertTitle.getStyleClass().add("stat-label");
-        alertTitle.setStyle("-fx-text-fill: #fbbf24; -fx-font-weight: bold; -fx-font-size: 14px;");
+        alertTitle.getStyleClass().addAll("stat-label", "text-warning");
+        alertTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         dashboardAlertsBox.getChildren().add(alertTitle);
 
         boolean hasAlerts = false;
@@ -379,9 +396,9 @@ public class MainController {
                 Label alertItem = new Label(icon + m.getName() + " \u2014 " + m.getStock() + " units remaining");
                 alertItem.getStyleClass().add("form-label");
                 if (m.getStock() == 0)
-                    alertItem.setStyle("-fx-text-fill: #e53e3e;");
+                    alertItem.getStyleClass().add("text-danger");
                 else
-                    alertItem.setStyle("-fx-text-fill: #d69e2e;");
+                    alertItem.getStyleClass().add("text-warning");
                 dashboardAlertsBox.getChildren().add(alertItem);
                 hasAlerts = true;
             }
@@ -390,7 +407,7 @@ public class MainController {
         if (!hasAlerts) {
             Label noAlerts = new Label("✅ All stock levels are healthy!");
             noAlerts.getStyleClass().add("form-label");
-            noAlerts.setStyle("-fx-text-fill: #48bb78;");
+            noAlerts.setStyle("-fx-text-fill: -fx-color-green;");
             dashboardAlertsBox.getChildren().add(noAlerts);
         }
     }
@@ -1143,15 +1160,6 @@ public class MainController {
             updateCartTotal();
             updateDashboardStatistics();
 
-            // Update Transaction History Stats
-            if (txnTotalCountLabel != null && txnTotalRevenueLabel != null) {
-                txnTotalCountLabel.setText(String.valueOf(transactionHistory.size()));
-                double tRev = 0;
-                for (Transaction t : transactionHistory)
-                    tRev += t.getTotal();
-                txnTotalRevenueLabel.setText("\u20B5" + String.format("%.2f", tRev));
-            }
-
             // Refresh medicine dropdown to reflect new stock
             txtMedSearch.clear();
             updateCombo.run();
@@ -1188,28 +1196,26 @@ public class MainController {
         VBox center = createPageShell("Transaction History",
                 "View and manage past sales transactions");
 
-        // Stat Cards
+        // 1. Stat Cards Container
         HBox cards = new HBox(15);
         cards.getStyleClass().add("stat-cards-container");
 
-        double totalRevenue = 0;
-        for (Transaction t : transactionHistory)
-            totalRevenue += t.getTotal();
-
-        txnTotalCountLabel = new Label(String.valueOf(transactionHistory.size()));
-        txnTotalCountLabel.getStyleClass().add("stat-value");
-        VBox card1 = new VBox(5, new Label("Total Transactions"), txnTotalCountLabel);
+        // 2. Initialize labels for total count and revenue (now strictly local variables)
+        Label localTxnTotalCountLabel = new Label("0");
+        localTxnTotalCountLabel.getStyleClass().add("stat-value");
+        VBox card1 = new VBox(5, new Label("Total Transactions"), localTxnTotalCountLabel);
         card1.getStyleClass().addAll("stat-card", "stat-card-teal");
         card1.setPadding(new Insets(15, 20, 15, 20));
         ((Label) card1.getChildren().get(0)).getStyleClass().add("stat-label");
 
-        txnTotalRevenueLabel = new Label("\u20B5" + String.format("%.2f", totalRevenue));
-        txnTotalRevenueLabel.getStyleClass().add("stat-value");
-        VBox card2 = new VBox(5, new Label("Total Revenue"), txnTotalRevenueLabel);
+        Label localTxnTotalRevenueLabel = new Label("\u20B50.00");
+        localTxnTotalRevenueLabel.getStyleClass().add("stat-value");
+        VBox card2 = new VBox(5, new Label("Total Revenue"), localTxnTotalRevenueLabel);
         card2.getStyleClass().addAll("stat-card", "stat-card-blue");
         card2.setPadding(new Insets(15, 20, 15, 20));
         ((Label) card2.getChildren().get(0)).getStyleClass().add("stat-label");
 
+        // 3. Add cards to the horizontal box layout
         cards.getChildren().addAll(card1, card2);
         for (Node card : cards.getChildren()) {
             HBox.setHgrow(card, Priority.ALWAYS);
@@ -1293,10 +1299,31 @@ public class MainController {
             return true;
         };
 
+        // 7. Add listeners to the search inputs to re-evaluate the filter logic
         txtTxnSearch.textProperty().addListener((obs, oldVal, newVal) -> filteredTxns.setPredicate(filterLogic));
         comboTimeFilter.valueProperty().addListener((obs, oldVal, newVal) -> filteredTxns.setPredicate(filterLogic));
 
+        // 8. Bind the filtered list to the TableView
         txnTable.setItems(filteredTxns);
+        
+        // 9. Add a listener to dynamically update the stat cards whenever the filtered list changes
+        Runnable updateTxnStats = () -> {
+            int count = filteredTxns.size();
+            double sum = 0.0;
+            for (Transaction t : filteredTxns) {
+                sum += t.getTotal();
+            }
+            localTxnTotalCountLabel.setText(String.valueOf(count));
+            localTxnTotalRevenueLabel.setText("\u20B5" + String.format("%.2f", sum));
+        };
+        
+        // Call once to initialize
+        updateTxnStats.run();
+        
+        // Attach listener to update stats dynamically when filters are applied
+        filteredTxns.addListener((javafx.collections.ListChangeListener.Change<? extends Transaction> c) -> {
+            updateTxnStats.run();
+        });
 
         VBox tableWrap = new VBox(txnTable);
         tableWrap.getStyleClass().add("table-container");
@@ -1489,8 +1516,8 @@ public class MainController {
     private void refreshInventoryAlerts() {
         inventoryAlertsBox.getChildren().clear();
         Label alertTitle = new Label("\u26A0 Stock Alerts");
-        alertTitle.getStyleClass().add("stat-label");
-        alertTitle.setStyle("-fx-text-fill: #fbbf24; -fx-font-weight: bold;");
+        alertTitle.getStyleClass().addAll("stat-label", "text-warning");
+        alertTitle.setStyle("-fx-font-weight: bold;");
 
         VBox alertItems = new VBox(4);
         for (Medicine m : masterData) {
