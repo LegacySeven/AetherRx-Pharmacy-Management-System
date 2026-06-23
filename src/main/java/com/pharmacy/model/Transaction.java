@@ -12,7 +12,7 @@ import javafx.collections.ObservableList;
 public class Transaction {
     private final SimpleStringProperty txnId;
     private final SimpleStringProperty dateTime;
-    private final SimpleStringProperty customerId;
+
     private final SimpleDoubleProperty total;
     private final SimpleIntegerProperty itemCount;
     private final ObservableList<CartItem> items;
@@ -21,16 +21,14 @@ public class Transaction {
      * Constructs a new Transaction using the current system time.
      *
      * @param txnId      The unique transaction receipt ID.
-     * @param customerId The identifier or name of the customer.
      * @param items      The list of items purchased.
      * @param total      The grand total monetary value.
      */
-    public Transaction(String txnId, String customerId, ObservableList<CartItem> items, double total) {
+    public Transaction(String txnId, ObservableList<CartItem> items, double total) {
         this.txnId = new SimpleStringProperty(txnId);
         this.dateTime = new SimpleStringProperty(
                 java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
         );
-        this.customerId = new SimpleStringProperty(customerId == null || customerId.isEmpty() ? "Walk-in" : customerId);
         this.total = new SimpleDoubleProperty(total);
         this.itemCount = new SimpleIntegerProperty(items.size());
         this.items = FXCollections.observableArrayList(items);
@@ -41,14 +39,12 @@ public class Transaction {
      *
      * @param txnId      The unique transaction receipt ID.
      * @param dateTime   The precise date and time the transaction occurred (yyyy-MM-dd HH:mm).
-     * @param customerId The identifier or name of the customer.
      * @param items      The list of items purchased.
      * @param total      The grand total monetary value.
      */
-    public Transaction(String txnId, String dateTime, String customerId, ObservableList<CartItem> items, double total) {
+    public Transaction(String txnId, String dateTime, ObservableList<CartItem> items, double total) {
         this.txnId = new SimpleStringProperty(txnId);
         this.dateTime = new SimpleStringProperty(dateTime);
-        this.customerId = new SimpleStringProperty(customerId == null || customerId.isEmpty() ? "Walk-in" : customerId);
         this.total = new SimpleDoubleProperty(total);
         this.itemCount = new SimpleIntegerProperty(items.size());
         this.items = FXCollections.observableArrayList(items);
@@ -62,9 +58,7 @@ public class Transaction {
     public String getDateTime() { return dateTime.get(); }
     public SimpleStringProperty dateTimeProperty() { return dateTime; }
 
-    /** @return The customer identifier or "Walk-in". */
-    public String getCustomerId() { return customerId.get(); }
-    public SimpleStringProperty customerIdProperty() { return customerId; }
+
 
     /** @return The total price paid. */
     public double getTotal() { return total.get(); }

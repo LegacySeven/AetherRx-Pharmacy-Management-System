@@ -22,7 +22,7 @@ Pharmacies relying on manual record-keeping face critical operational challenges
 The purpose of this system is to digitize and automate core pharmacy operations with an emphasis on speed, security, and aesthetics. It replaces manual counting and calculation with an automated system that manages stock levels, instantly calculates customer change, synchronizes low-stock alerts in real-time, generates filtered financial analytics, and enforces role-based permissions to aid in business decision-making and security.
 
 ### Intended Users
-- **Pharmacy Owners / Administrators:** Full access to all modules — tracking overall income, analyzing filtered transaction histories, managing inventory data, exporting reports, and configuring system settings.
+- **Pharmacy Owners / Administrators:** Full access to all modules — tracking overall income, analyzing filtered transaction histories, managing inventory data, and exporting reports.
 - **Pharmacists / Cashiers:** Restricted access — rapidly searching the database, processing customer transactions via the streamlined POS system, and generating accurate checkout totals and change.
 
 ## 3. Requirements
@@ -51,7 +51,7 @@ The purpose of this system is to digitize and automate core pharmacy operations 
 3. Users navigate to the **Inventory** screen to input new medicines or utilize the dynamic search bar to filter existing stock, perform quick restocks, delete records, and export the full inventory to CSV.
 4. The user navigates to the **Point of Sale (POS)** screen to process a sale. The system allows selecting medicines, calculates the cart total, requires the cashier to input the amount tendered, instantly calculates the exact change due in green (or blocks the sale in red if insufficient), processes the transaction, deducts stock, and auto-clears the cart.
 5. Users navigate to the **Transaction History** panel to filter past receipts by time periods (Today, Week, Month) to audit sales and export transaction data to CSV.
-6. **Cashiers** are restricted from accessing the Inventory Management and Settings modules; only Admins have full access to all features.
+6. **Cashiers** are restricted from accessing the Inventory Management module; only Admins have full access to all features.
 
 ### Data Structure (Core Models):
 - **Medicine:** Represents the inventory catalog (`code`, `name`, `category`, `stock`, `status`, `price`).
@@ -60,7 +60,7 @@ The purpose of this system is to digitize and automate core pharmacy operations 
 
 ### Class Architecture (MVC Pattern):
 - **View (Presentation):** `login.fxml`, `main.fxml`, `styles.css`.
-- **Controller (Logic):** `App.java` (Entry Point), `LoginController.java` (Authentication & RBAC), `MainController.java` (Core Dashboard, POS, Inventory, Customers, and Settings logic).
+- **Controller (Logic):** `App.java` (Entry Point), `LoginController.java` (Authentication & RBAC), `MainController.java` (Core Dashboard, POS, Inventory, and Customers logic).
 - **Model (Data):** `Medicine.java`, `Transaction.java`, `CartItem.java`.
 - **Utility:** `DatabaseManager.java` (SQLite CRUD & Analytics), `UserSession.java` (Session & Role Management), `CsvExporter.java` (CSV Report Generation).
 
@@ -72,7 +72,7 @@ The purpose of this system is to digitize and automate core pharmacy operations 
    - Validates credentials against a `users` table in the embedded SQLite database.
    - Implements a seamless `defaultButton` property in FXML to allow rapid Enter-key submission.
    - Assigns roles (`Admin` or `Cashier`) via the `UserSession` singleton, which persists for the session duration.
-   - **Cashier Lockout:** When a Cashier is logged in, the Inventory Management and System Settings sidebar buttons are disabled and greyed out, preventing unauthorized data modification.
+   - **Cashier Lockout:** When a Cashier is logged in, the Inventory Management sidebar button is disabled and greyed out, preventing unauthorized data modification.
 
 2. **Dashboard Analytics & Revenue Chart:**
    - Dynamically calculates total revenue, total transactions, low-stock items, out-of-stock items, and total inventory valuation.
@@ -91,7 +91,7 @@ The purpose of this system is to digitize and automate core pharmacy operations 
    - **CSV Export:** Transactions can be exported to CSV from the Transaction History panel.
 
 5. **Embedded SQLite Database:**
-   - The application uses an embedded SQLite database (`pharmacy.db`) via the `sqlite-jdbc` driver, requiring **zero external database setup**.
+   - The application uses an embedded SQLite database (`pharmacy_management.db`) via the `sqlite-jdbc` driver, requiring **zero external database setup**.
    - On first launch, the database is auto-created and seeded with 18 sample medicines, 2 sample customers, and 2 user accounts (admin/cashier).
    - All data persists across application restarts.
 
@@ -104,7 +104,7 @@ The purpose of this system is to digitize and automate core pharmacy operations 
 | **TC-03** | Time-Based Filtering | Selecting "Today" in the Transaction History dropdown should hide all receipts from yesterday. | UI filters smoothly using `FilteredList.setPredicate()` and `LocalDate.equals()`. |
 | **TC-04** | Live Alert Synchronization | Restocking a "Low Stock" medicine from 5 to 50 should immediately remove it from the Dashboard Alert list. | The alert list updates instantly via shared `ObservableList` and UI refresh methods. |
 | **TC-05** | UI Node Caching Stability | Navigating rapidly between POS, Inventory, and Dashboard should not cause Memory Leaks or `NullPointerExceptions`. | Stable. Page roots (`dashboardCenter`, `salesCenter`) are cached in variables preventing redundant FXML loading. |
-| **TC-06** | Role-Based Access Control | Logging in as "cashier" should disable the Inventory and Settings sidebar buttons. | Buttons are greyed out. Clicking them does nothing. Only Admin can access those modules. |
+| **TC-06** | Role-Based Access Control | Logging in as "cashier" should disable the Inventory sidebar button. | Button is greyed out. Clicking it does nothing. Only Admin can access those modules. |
 | **TC-07** | CSV Export | Clicking "Export CSV" on the Inventory page should open a save dialog and write a valid CSV file. | File is saved successfully with correct headers and data. Opens properly in Excel. |
 | **TC-08** | Revenue Chart | Processing a sale should cause the Dashboard revenue chart to reflect the new daily total. | Chart updates after sale completion via `populateRevenueChart()`. |
 
@@ -128,7 +128,6 @@ The purpose of this system is to digitize and automate core pharmacy operations 
 The development of the Pharmacy Management System successfully yielded a modern, responsive, and highly secure desktop application. By utilizing JavaFX with a premium dark-mode aesthetic and powerful background logic, the software solves the critical issues of manual inventory tracking, vulnerable point-of-sale processing, and lack of analytical oversight. The inclusion of the real-time change calculator, time-based transaction filters, interactive revenue charts, CSV export functionality, and role-based access control elevates it to an enterprise-ready solution.
 
 ### Future Improvements:
-- **Medicine Expiry Tracking:** Add an `expiry_date` field to the medicines database and create an "Expiring Soon" alert system on the Dashboard to flag medicines expiring within the next 30 days, with color-coded indicators (red for expired, amber for expiring soon).
 - **Receipt Generation:** Implement a PDF library (like iText or Apache PDFBox) to generate and automatically print physical receipts for customers.
 - **Barcode Scanning:** Integrate a barcode scanning library to allow rapid medicine lookup at the point of sale.
 - **Multi-Branch Support:** Extend the database schema to support multiple pharmacy branches with centralized reporting.

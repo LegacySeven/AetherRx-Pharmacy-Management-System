@@ -3,15 +3,9 @@
 <?import java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.Region?>
@@ -45,9 +39,8 @@
             <VBox spacing="8" VBox.vgrow="ALWAYS">
                 <Button fx:id="btnDashboard" text="✥  Dashboard" onAction="#handleNavDashboard" styleClass="nav-button, nav-button-active" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
                 <Button fx:id="btnInventory" text="📦  Inventory Manager" onAction="#handleNavInventory" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
-                <Button fx:id="btnSales" text="📊  Sales Analytics" onAction="#handleNavSales" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
-                <Button fx:id="btnCustomers" text="👥  Customer Records" onAction="#handleNavCustomers" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
-                <Button fx:id="btnSettings" text="⚙  System Settings" onAction="#handleNavSettings" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnSales" text="📊  Point of Sale" onAction="#handleNavSales" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
+                <Button fx:id="btnTransactions" text="📜  Transaction History" onAction="#handleNavTransactions" styleClass="nav-button" maxWidth="Infinity" alignment="BASELINE_LEFT"/>
             </VBox>
             <!-- Footer Navigation -->
             <VBox spacing="8">
@@ -66,7 +59,7 @@
         </VBox>
     </left>
 
-    <!-- CENTER CONTENT -->
+    <!-- CENTER CONTENT — Pure Analytics Dashboard -->
     <center>
         <VBox fx:id="centerContent" spacing="20" styleClass="main-content">
             <padding>
@@ -76,8 +69,8 @@
             <!-- Dashboard Title Header -->
             <HBox alignment="CENTER_LEFT">
                 <VBox>
-                    <Label text="Inventory Dashboard" styleClass="page-title"/>
-                    <Label text="Real-time pharmaceutical catalog tracking and statistics" styleClass="page-subtitle"/>
+                    <Label text="Analytics Dashboard" styleClass="page-title"/>
+                    <Label text="Real-time pharmacy performance metrics and revenue trends" styleClass="page-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label text="System Online" styleClass="status-badge-online"/>
@@ -120,16 +113,14 @@
                     <Label text="Total Net Valuation" styleClass="stat-label"/>
                     <Label fx:id="lblTotalValuation" text="0.00" styleClass="stat-value"/>
                 </VBox>
-
-
             </HBox>
 
-            <!-- REVENUE LINE CHART -->
-            <VBox styleClass="table-container" prefHeight="200">
+            <!-- REVENUE LINE CHART — Large & Prominent -->
+            <VBox styleClass="table-container" VBox.vgrow="ALWAYS">
                 <padding>
                     <Insets top="10" right="10" bottom="10" left="10"/>
                 </padding>
-                <LineChart fx:id="revenueChart" title="Revenue — Last 7 Days" VBox.vgrow="ALWAYS" createSymbols="true" animated="true">
+                <LineChart fx:id="revenueChart" title="Revenue — Last 7 Days" VBox.vgrow="ALWAYS" createSymbols="true" animated="true" minHeight="300">
                     <xAxis>
                         <CategoryAxis label="Date"/>
                     </xAxis>
@@ -139,95 +130,14 @@
                 </LineChart>
             </VBox>
 
-            <!-- SEARCH AND FILTER PANEL -->
-            <HBox spacing="15" alignment="CENTER_LEFT" styleClass="filter-bar">
+            <!-- LOW STOCK ALERTS PANEL -->
+            <VBox fx:id="dashboardAlertsBox" styleClass="stat-card, stat-card-amber" spacing="8">
                 <padding>
-                    <Insets top="12" right="15" bottom="12" left="15"/>
+                    <Insets top="15" right="20" bottom="15" left="20"/>
                 </padding>
-                
-                <!-- Search Box -->
-                <TextField fx:id="txtSearch" promptText="🔍 Search code, name, category..." styleClass="search-field" HBox.hgrow="ALWAYS" prefHeight="38"/>
-                
-                <!-- Category Dropdown Filter -->
-                <Label text="Filter:" styleClass="filter-label"/>
-                <ComboBox fx:id="comboFilterCategory" styleClass="filter-combo" prefHeight="38" prefWidth="150"/>
-            </HBox>
-
-            <!-- INVENTORY TABLE VIEW -->
-            <VBox VBox.vgrow="ALWAYS" styleClass="table-container">
-                <TableView fx:id="tblInventory" VBox.vgrow="ALWAYS" styleClass="modern-table">
-                    <columns>
-                        <TableColumn fx:id="colCode" text="Med Code" prefWidth="100"/>
-                        <TableColumn fx:id="colName" text="Medicine Name" prefWidth="220"/>
-                        <TableColumn fx:id="colCategory" text="Category" prefWidth="130"/>
-                        <TableColumn fx:id="colStock" text="Stock Qty" prefWidth="95"/>
-                        <TableColumn fx:id="colStatus" text="Stock Status" prefWidth="110"/>
-                        <TableColumn fx:id="colPrice" text="Unit Price" prefWidth="100"/>
-                    </columns>
-                </TableView>
+                <Label text="⚠ Low Stock &amp; Out of Stock Alerts" styleClass="stat-label" style="-fx-text-fill: #fbbf24; -fx-font-weight: bold; -fx-font-size: 14px;"/>
             </VBox>
-            
-            <!-- TABLE CONTROLS FOOTER -->
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Button text="🗑 Delete Selected Item" onAction="#handleDeleteMedicine" styleClass="action-button-delete" prefHeight="36"/>
-                <Region HBox.hgrow="ALWAYS"/>
-                <Label text="Select a record and press Delete to remove it from database." styleClass="footer-help-text"/>
-            </HBox>
         </VBox>
     </center>
 
-    <!-- RIGHT PANEL: ADD MEDICINE FORM -->
-    <right>
-        <VBox fx:id="rightPanel" styleClass="right-panel" spacing="20" prefWidth="280">
-            <padding>
-                <Insets top="30" right="20" bottom="20" left="20"/>
-            </padding>
-            
-            <VBox spacing="5">
-                <Label text="Add Formulation" styleClass="panel-title"/>
-                <Label text="Register a new medicine to inventory" styleClass="panel-subtitle"/>
-            </VBox>
-            
-            <Separator styleClass="panel-separator"/>
-            
-            <VBox spacing="15" VBox.vgrow="ALWAYS">
-                <!-- Code Field -->
-                <VBox spacing="5">
-                    <Label text="Medicine Code" styleClass="form-label"/>
-                    <TextField fx:id="txtCode" promptText="e.g. MED007" styleClass="form-field"/>
-                </VBox>
-
-                <!-- Name Field -->
-                <VBox spacing="5">
-                    <Label text="Medicine Name" styleClass="form-label"/>
-                    <TextField fx:id="txtName" promptText="e.g. Advil 200mg" styleClass="form-field"/>
-                </VBox>
-
-                <!-- Category Field -->
-                <VBox spacing="5">
-                    <Label text="Category" styleClass="form-label"/>
-                    <ComboBox fx:id="comboFormCategory" promptText="Select Category" styleClass="form-combo" maxWidth="Infinity"/>
-                </VBox>
-
-                <!-- Stock Field -->
-                <VBox spacing="5">
-                    <Label text="Opening Stock Quantity" styleClass="form-label"/>
-                    <TextField fx:id="txtStock" promptText="e.g. 100" styleClass="form-field"/>
-                </VBox>
-
-                <!-- Price Field -->
-                <VBox spacing="5">
-                    <Label text="Unit Price (GHS)" styleClass="form-label"/>
-                    <TextField fx:id="txtPrice" promptText="e.g. 12.99" styleClass="form-field"/>
-                </VBox>
-
-
-                
-                <Region VBox.vgrow="ALWAYS"/>
-                
-                <!-- Submit Button -->
-                <Button text="✓ Register Medicine" onAction="#handleAddMedicine" styleClass="action-button-add" maxWidth="Infinity" prefHeight="44"/>
-            </VBox>
-        </VBox>
-    </right>
 </BorderPane>

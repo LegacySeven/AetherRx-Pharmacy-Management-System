@@ -73,14 +73,13 @@ public class CsvExporter {
 
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
             // Header row
-            pw.println("Transaction ID,Date/Time,Customer,Items,Total");
+            pw.println("Transaction ID,Date/Time,Items,Total");
 
             // Data rows
             for (Transaction t : transactions) {
-                pw.printf("%s,%s,\"%s\",%d,%.2f%n",
+                pw.printf("%s,%s,%d,%.2f%n",
                         t.getTxnId(),
                         t.getDateTime(),
-                        t.getCustomerId().replace("\"", "\"\""),
                         t.getItemCount(),
                         t.getTotal()
                 );

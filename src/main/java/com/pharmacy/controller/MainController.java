@@ -9,7 +9,6 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -20,71 +19,63 @@ import java.util.Optional;
 
 /**
  * Core Controller for the Pharmacy Management System.
- * Manages the global state, navigation routing, the Point of Sale (POS) cart, 
+ * Manages the global state, navigation routing, the Point of Sale (POS) cart,
  * transaction history, and dynamic view rendering via Node caching.
  */
 public class MainController {
 
     // --- Root Layout ---
-    @FXML private BorderPane rootPane;
+    @FXML
+    private BorderPane rootPane;
 
     // --- Navigation Buttons ---
-    @FXML private Button btnDashboard;
-    @FXML private Button btnInventory;
-    @FXML private Button btnSales;
-    @FXML private Button btnCustomers;
-    @FXML private Button btnSettings;
+    @FXML
+    private Button btnDashboard;
+    @FXML
+    private Button btnInventory;
+    @FXML
+    private Button btnSales;
+    @FXML
+    private Button btnTransactions;
 
-    // --- Dashboard: Statistics Controls ---
-    @FXML private Label lblTotalMedicines;
-    @FXML private Label lblLowStock;
-    @FXML private Label lblOutofStock;
-    @FXML private Label lblTotalValuation;
-
+    // --- Dashboard: Statistics Labels ---
+    @FXML
+    private Label lblTotalMedicines;
+    @FXML
+    private Label lblLowStock;
+    @FXML
+    private Label lblOutofStock;
+    @FXML
+    private Label lblTotalValuation;
 
     // --- Dashboard: Revenue Chart ---
-    @FXML private javafx.scene.chart.LineChart<String, Number> revenueChart;
+    @FXML
+    private javafx.scene.chart.LineChart<String, Number> revenueChart;
 
-    // --- Dashboard: Search & Filters ---
-    @FXML private TextField txtSearch;
-    @FXML private ComboBox<String> comboFilterCategory;
-
-    // --- Dashboard: Table & Columns ---
-    @FXML private TableView<Medicine> tblInventory;
-    @FXML private TableColumn<Medicine, String> colCode;
-    @FXML private TableColumn<Medicine, String> colName;
-    @FXML private TableColumn<Medicine, String> colCategory;
-    @FXML private TableColumn<Medicine, Integer> colStock;
-    @FXML private TableColumn<Medicine, String> colStatus;
-    @FXML private TableColumn<Medicine, Double> colPrice;
-
-    // --- Dashboard: Add/Edit Form Fields ---
-    @FXML private TextField txtCode;
-    @FXML private TextField txtName;
-    @FXML private ComboBox<String> comboFormCategory;
-    @FXML private TextField txtStock;
-    @FXML private TextField txtPrice;
-
+    // --- Dashboard: Alerts Box ---
+    @FXML
+    private VBox dashboardAlertsBox;
 
     // --- Layout Containers (for page swapping) ---
-    @FXML private VBox centerContent;
-    @FXML private VBox rightPanel;
+    @FXML
+    private VBox centerContent;
 
     // --- Internal State & Observables ---
-    /** The master dataset holding all current pharmacy inventory. Shared across views for live updates. */
+    /**
+     * The master dataset holding all current pharmacy inventory. Shared across
+     * views for live updates.
+     */
     private final ObservableList<Medicine> masterData = FXCollections.observableArrayList();
-    /** A filtered view of the masterData used by the Inventory search bar and category filters. */
-    private FilteredList<Medicine> filteredData;
 
     // --- UI Node Caching ---
-    // These variables store the built layouts for each page. 
-    // This caching prevents redundant FXML/UI recreation and eliminates NullPointerExceptions when switching views.
-    private Node dashboardCenter, dashboardRight;
+    // These variables store the built layouts for each page.
+    // This caching prevents redundant UI recreation and eliminates
+    // NullPointerExceptions when switching views.
+    private Node dashboardCenter;
     private Node inventoryCenter, inventoryRight;
     private Node salesCenter, salesRight;
-    private Node customersCenter, customersRight;
-    private Node settingsCenter;
-    
+    private Node transactionsCenter, transactionsRight;
+
     // Inventory sync references
     private VBox inventoryAlertsBox;
     private Label lblInvLowStock;
@@ -93,108 +84,53 @@ public class MainController {
     // Currently active nav button
     private Button activeNavButton;
 
-    // Customer data for customer records page
-    private final ObservableList<String[]> customerData = FXCollections.observableArrayList();
-
     // Cart and transaction data
     private final ObservableList<CartItem> cartItems = FXCollections.observableArrayList();
     private final ObservableList<Transaction> transactionHistory = FXCollections.observableArrayList();
     private Label cartTotalLabel;
     private int txnCounter = 0;
 
+    // Transaction History stat labels
+    private Label txnTotalCountLabel;
+    private Label txnTotalRevenueLabel;
+
     /**
      * Called automatically after the FXML is loaded.
-     * Initializes the core dashboard UI, populates tables with sample data,
+     * Initializes the analytics dashboard, populates statistics,
      * and caches the initial scene graph nodes.
      */
     @FXML
     public void initialize() {
-        // 1. Initialize ComboBox Items
-        ObservableList<String> categories = FXCollections.observableArrayList("All", "Analgesics", "Antibiotics", "Cardiovascular", "Antidiabetic", "Vitamins");
-        comboFilterCategory.setItems(categories);
-        comboFilterCategory.setValue("All");
-
-        ObservableList<String> formCategories = FXCollections.observableArrayList("Analgesics", "Antibiotics", "Cardiovascular", "Antidiabetic", "Vitamins");
-        comboFormCategory.setItems(formCategories);
-
-        // 2. Initialize Columns
-        colCode.setCellValueFactory(cell -> cell.getValue().codeProperty());
-        colName.setCellValueFactory(cell -> cell.getValue().nameProperty());
-        colCategory.setCellValueFactory(cell -> cell.getValue().categoryProperty());
-        colStock.setCellValueFactory(cell -> cell.getValue().stockProperty().asObject());
-        colStatus.setCellValueFactory(cell -> cell.getValue().statusProperty());
-        colPrice.setCellValueFactory(cell -> cell.getValue().priceProperty().asObject());
-
-        // Custom styling for columns (currency formatting)
-        colPrice.setCellFactory(tc -> new TableCell<>() {
-            @Override
-            protected void updateItem(Double price, boolean empty) {
-                super.updateItem(price, empty);
-                if (empty || price == null) {
-                    setText(null);
-                } else {
-                    setText(String.format("\u20B5%.2f", price));
-                }
-            }
-        });
-
-        // 3. Load Sample Data
+        // 1. Load data from database
         loadSampleData();
 
-        // 4. Set up Search and Filtering (Real-time FilteredList)
-        // Make the dashboard table columns fill available width
-        tblInventory.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-
-        filteredData = new FilteredList<>(masterData, p -> true);
-
-        // Listen for search input changes
-        txtSearch.textProperty().addListener((observable, oldValue, newValue) -> applyFilter());
-        
-        // Listen for category selection changes
-        comboFilterCategory.valueProperty().addListener((observable, oldValue, newValue) -> applyFilter());
-
-        // Connect the FilteredList to the Table
-        SortedList<Medicine> sortedData = new SortedList<>(filteredData);
-        sortedData.comparatorProperty().bind(tblInventory.comparatorProperty());
-        tblInventory.setItems(sortedData);
-
-        // 5. Update initial stats dashboard
+        // 2. Update dashboard statistics, chart, and alerts
         updateDashboardStatistics();
 
-        // 6. Save dashboard nodes for page switching
+        // 3. Save dashboard node for page switching
         dashboardCenter = centerContent;
-        dashboardRight = rightPanel;
         activeNavButton = btnDashboard;
 
-        // 7. Load sample customer data
-        loadSampleCustomers();
-
-        // 8. Load sample transactions for demo
+        // 4. Load transaction data
         loadSampleTransactions();
 
-        // 9. Enforce Role-Based Access Control (RBAC)
+        // 5. Enforce Role-Based Access Control (RBAC)
         if (com.pharmacy.util.UserSession.isCashier()) {
             // Visually indicate restricted pages with lock icons
             btnInventory.setText("\uD83D\uDD12 Inventory");
             btnInventory.setOpacity(0.5);
-            btnSettings.setText("\uD83D\uDD12 Settings");
-            btnSettings.setOpacity(0.5);
         }
     }
 
     // ============================================================
-    //                      SAMPLE DATA GENERATION
+    // SAMPLE DATA GENERATION
     // ============================================================
 
     /**
-     * Loads high-quality mock data into the table.
+     * Loads inventory data from the database.
      */
     private void loadSampleData() {
         masterData.setAll(com.pharmacy.util.DatabaseManager.loadMedicines());
-    }
-
-    private void loadSampleCustomers() {
-        customerData.setAll(com.pharmacy.util.DatabaseManager.loadCustomers());
     }
 
     private void loadSampleTransactions() {
@@ -205,8 +141,10 @@ public class MainController {
             for (Transaction t : transactionHistory) {
                 try {
                     int id = Integer.parseInt(t.getTxnId().replace("TXN", ""));
-                    if (id > maxId) maxId = id;
-                } catch (Exception ignored) {}
+                    if (id > maxId)
+                        maxId = id;
+                } catch (Exception ignored) {
+                }
             }
             txnCounter = maxId;
         } else {
@@ -215,14 +153,28 @@ public class MainController {
     }
 
     // ============================================================
-    //                      NAVIGATION & ROUTING
+    // NAVIGATION & ROUTING
     // ============================================================
 
-    @FXML private void handleNavDashboard()  { switchPage("dashboard"); }
-    @FXML private void handleNavInventory()  { switchPage("inventory"); }
-    @FXML private void handleNavSales()      { switchPage("sales"); }
-    @FXML private void handleNavCustomers()  { switchPage("customers"); }
-    @FXML private void handleNavSettings()   { switchPage("settings"); }
+    @FXML
+    private void handleNavDashboard() {
+        switchPage("dashboard");
+    }
+
+    @FXML
+    private void handleNavInventory() {
+        switchPage("inventory");
+    }
+
+    @FXML
+    private void handleNavSales() {
+        switchPage("sales");
+    }
+
+    @FXML
+    private void handleNavTransactions() {
+        switchPage("transactions");
+    }
 
     /**
      * Central page-switching engine. Swaps center and right content,
@@ -230,7 +182,7 @@ public class MainController {
      */
     private void switchPage(String page) {
         // RBAC: Block Cashier from restricted pages
-        if (com.pharmacy.util.UserSession.isCashier() && ("inventory".equals(page) || "settings".equals(page))) {
+        if (com.pharmacy.util.UserSession.isCashier() && "inventory".equals(page)) {
             showAlert("Access Denied",
                     "\uD83D\uDD12 This section requires Administrator privileges.\n\nPlease contact your Admin to access this feature.",
                     Alert.AlertType.WARNING);
@@ -240,11 +192,18 @@ public class MainController {
         // Update active button highlight
         Button targetButton;
         switch (page) {
-            case "inventory": targetButton = btnInventory; break;
-            case "sales":     targetButton = btnSales; break;
-            case "customers": targetButton = btnCustomers; break;
-            case "settings":  targetButton = btnSettings; break;
-            default:          targetButton = btnDashboard; break;
+            case "inventory":
+                targetButton = btnInventory;
+                break;
+            case "sales":
+                targetButton = btnSales;
+                break;
+            case "transactions":
+                targetButton = btnTransactions;
+                break;
+            default:
+                targetButton = btnDashboard;
+                break;
         }
         setActiveNavButton(targetButton);
 
@@ -252,11 +211,12 @@ public class MainController {
         switch (page) {
             case "dashboard":
                 rootPane.setCenter(dashboardCenter);
-                rootPane.setRight(dashboardRight);
+                rootPane.setRight(null);
                 updateDashboardStatistics();
                 break;
             case "inventory":
-                if (inventoryCenter == null) buildInventoryPage();
+                if (inventoryCenter == null)
+                    buildInventoryPage();
                 rootPane.setCenter(inventoryCenter);
                 rootPane.setRight(inventoryRight);
                 break;
@@ -266,22 +226,19 @@ public class MainController {
                 rootPane.setCenter(salesCenter);
                 rootPane.setRight(salesRight);
                 break;
-            case "customers":
-                if (customersCenter == null) buildCustomersPage();
-                rootPane.setCenter(customersCenter);
-                rootPane.setRight(customersRight);
-                break;
-            case "settings":
-                if (settingsCenter == null) buildSettingsPage();
-                rootPane.setCenter(settingsCenter);
-                rootPane.setRight(null);
+            case "transactions":
+                if (transactionsCenter == null)
+                    buildTransactionHistoryPage();
+                rootPane.setCenter(transactionsCenter);
+                rootPane.setRight(transactionsRight);
                 break;
         }
     }
 
     private boolean isDarkTheme = false;
 
-    @FXML private void handleToggleTheme() {
+    @FXML
+    private void handleToggleTheme() {
         isDarkTheme = !isDarkTheme;
         if (isDarkTheme) {
             rootPane.getStyleClass().add("dark-theme");
@@ -298,28 +255,29 @@ public class MainController {
         com.pharmacy.util.UserSession.logout();
 
         try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/pharmacy/view/login.fxml"));
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/com/pharmacy/view/login.fxml"));
             javafx.scene.Parent root = loader.load();
-            
+
             javafx.stage.Stage stage = new javafx.stage.Stage();
             stage.setTitle("Login \u2014 Pharmacy Management System");
-            
+
             java.net.URL iconUrl = getClass().getResource("/com/pharmacy/icon.png");
             if (iconUrl != null) {
                 stage.getIcons().add(new javafx.scene.image.Image(iconUrl.toExternalForm()));
             }
-            
+
             javafx.scene.Scene scene = new javafx.scene.Scene(root, 500, 450);
-            
+
             java.net.URL cssUrl = getClass().getResource("/com/pharmacy/style/styles.css");
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
             }
-            
+
             stage.setScene(scene);
             stage.setResizable(false);
             stage.show();
-            
+
             ((javafx.stage.Stage) rootPane.getScene().getWindow()).close();
         } catch (java.io.IOException e) {
             e.printStackTrace();
@@ -335,41 +293,14 @@ public class MainController {
     }
 
     // ============================================================
-    //                      DASHBOARD LOGIC
+    // DASHBOARD LOGIC
     // ============================================================
 
     /**
-     * Re-evaluates the FilteredList when the search query or category combo box changes.
-     * Updates the main dashboard table to only display matching items.
-     */
-    private void applyFilter() {
-        String searchText = txtSearch.getText().toLowerCase().trim();
-        String selectedCategory = comboFilterCategory.getValue();
-
-        filteredData.setPredicate(medicine -> {
-            // Category Filter
-            if (selectedCategory != null && !selectedCategory.equals("All")) {
-                if (!medicine.getCategory().equalsIgnoreCase(selectedCategory)) {
-                    return false;
-                }
-            }
-
-            // Search Keyword Filter
-            if (searchText.isEmpty()) {
-                return true;
-            }
-
-            return medicine.getCode().toLowerCase().contains(searchText) ||
-                   medicine.getName().toLowerCase().contains(searchText) ||
-                   medicine.getCategory().toLowerCase().contains(searchText);
-        });
-
-        updateDashboardStatistics();
-    }
-
-    /**
-     * Recalculates statistics for the top dashboard panel (Total Medicines, Valuation, Out of Stock, etc.).
-     * This is automatically called whenever an item is bought or restocked to ensure real-time accuracy.
+     * Recalculates statistics for the dashboard panel (Total Medicines, Valuation,
+     * Out of Stock, etc.).
+     * This is automatically called whenever an item is bought or restocked to
+     * ensure real-time accuracy.
      */
     private void updateDashboardStatistics() {
         int total = masterData.size();
@@ -391,22 +322,27 @@ public class MainController {
         lblOutofStock.setText(String.valueOf(outOfStock));
         lblTotalValuation.setText(String.format("\u20B5%.2f", totalValuation));
 
-
-
         // Update revenue chart
         populateRevenueChart();
 
+        // Refresh dashboard alerts
+        refreshDashboardAlerts();
+
         // Sync Inventory page stats dynamically
-        if (lblInvLowStock != null) lblInvLowStock.setText(String.valueOf(lowStock));
-        if (lblInvOutOfStock != null) lblInvOutOfStock.setText(String.valueOf(outOfStock));
-        if (inventoryAlertsBox != null) refreshInventoryAlerts();
+        if (lblInvLowStock != null)
+            lblInvLowStock.setText(String.valueOf(lowStock));
+        if (lblInvOutOfStock != null)
+            lblInvOutOfStock.setText(String.valueOf(outOfStock));
+        if (inventoryAlertsBox != null)
+            refreshInventoryAlerts();
     }
 
     /**
      * Populates the dashboard revenue line chart with data from the last 7 days.
      */
     private void populateRevenueChart() {
-        if (revenueChart == null) return;
+        if (revenueChart == null)
+            return;
         revenueChart.getData().clear();
 
         java.util.Map<String, Double> revenue = com.pharmacy.util.DatabaseManager.getRevenueByDay(7);
@@ -424,116 +360,64 @@ public class MainController {
     }
 
     /**
-     * Handles adding a new medicine from the sidebar form.
+     * Refreshes the low stock and out of stock alerts on the Dashboard.
      */
-    @FXML
-    private void handleAddMedicine() {
-        String code = txtCode.getText().trim();
-        String name = txtName.getText().trim();
-        String category = comboFormCategory.getValue();
-        String stockStr = txtStock.getText().trim();
-        String priceStr = txtPrice.getText().trim();
-
-        // Simple validation
-        if (code.isEmpty() || name.isEmpty() || category == null || stockStr.isEmpty() || priceStr.isEmpty()) {
-            showAlert("Input Validation Error", "All fields are required to register a medicine.", Alert.AlertType.ERROR);
+    private void refreshDashboardAlerts() {
+        if (dashboardAlertsBox == null)
             return;
+        dashboardAlertsBox.getChildren().clear();
+
+        Label alertTitle = new Label("\u26A0 Low Stock & Out of Stock Alerts");
+        alertTitle.getStyleClass().add("stat-label");
+        alertTitle.setStyle("-fx-text-fill: #fbbf24; -fx-font-weight: bold; -fx-font-size: 14px;");
+        dashboardAlertsBox.getChildren().add(alertTitle);
+
+        boolean hasAlerts = false;
+        for (Medicine m : masterData) {
+            if (m.getStock() == 0 || m.getStock() < 30) {
+                String icon = m.getStock() == 0 ? "\u26D4 " : "\u26A0 ";
+                Label alertItem = new Label(icon + m.getName() + " \u2014 " + m.getStock() + " units remaining");
+                alertItem.getStyleClass().add("form-label");
+                if (m.getStock() == 0)
+                    alertItem.setStyle("-fx-text-fill: #e53e3e;");
+                else
+                    alertItem.setStyle("-fx-text-fill: #d69e2e;");
+                dashboardAlertsBox.getChildren().add(alertItem);
+                hasAlerts = true;
+            }
         }
 
-        try {
-            int stock = Integer.parseInt(stockStr);
-            double price = Double.parseDouble(priceStr);
-
-            if (stock < 0 || price < 0) {
-                showAlert("Input Validation Error", "Stock and Price cannot be negative.", Alert.AlertType.ERROR);
-                return;
-            }
-
-            // Determine stock status dynamically
-            String status = "In Stock";
-            if (stock == 0) {
-                status = "Out of Stock";
-            } else if (stock < 30) {
-                status = "Low Stock";
-            }
-
-
-
-            Medicine newMed = new Medicine(code, name, category, stock, status, price);
-            try {
-                com.pharmacy.util.DatabaseManager.addMedicine(newMed);
-                masterData.add(newMed);
-            } catch (java.sql.SQLException ex) {
-                showAlert("Database Error", "Failed to save medicine to database: " + ex.getMessage(), Alert.AlertType.ERROR);
-                return;
-            }
-
-            // Clear inputs
-            txtCode.clear();
-            txtName.clear();
-            comboFormCategory.setValue(null);
-            txtStock.clear();
-            txtPrice.clear();
-
-
-            updateDashboardStatistics();
-            showAlert("Success", "Medicine successfully added to inventory!", Alert.AlertType.INFORMATION);
-
-        } catch (NumberFormatException e) {
-            showAlert("Input Validation Error", "Stock must be an integer, and Price must be a decimal value.", Alert.AlertType.ERROR);
-        }
-    }
-
-    /**
-     * Deletes the currently selected medicine from the master dataset.
-     * Prompts the user with a confirmation alert before executing the deletion.
-     */
-    @FXML
-    private void handleDeleteMedicine() {
-        Medicine selected = tblInventory.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showAlert("Selection Required", "Please select a medicine from the table first.", Alert.AlertType.WARNING);
-            return;
-        }
-
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Deletion");
-        confirm.setHeaderText(null);
-        confirm.setContentText("Are you sure you want to remove " + selected.getName() + " from the inventory database?");
-        
-        Optional<ButtonType> result = confirm.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            try {
-                com.pharmacy.util.DatabaseManager.deleteMedicine(selected.getCode());
-                masterData.remove(selected);
-                updateDashboardStatistics();
-                showAlert("Deleted", "Medicine removed successfully.", Alert.AlertType.INFORMATION);
-            } catch (java.sql.SQLException ex) {
-                showAlert("Database Error", "Failed to delete from database: " + ex.getMessage(), Alert.AlertType.ERROR);
-            }
+        if (!hasAlerts) {
+            Label noAlerts = new Label("✅ All stock levels are healthy!");
+            noAlerts.getStyleClass().add("form-label");
+            noAlerts.setStyle("-fx-text-fill: #48bb78;");
+            dashboardAlertsBox.getChildren().add(noAlerts);
         }
     }
 
     // ============================================================
-    //                      PAGE BUILDERS
+    // PAGE BUILDERS
     // ============================================================
 
     /**
      * Constructs the Inventory Manager page programmatically.
-     * This layout provides deep stock management capabilities and a detailed TableView.
-     * The built layout is cached in memory for immediate retrieval upon future navigation.
+     * This layout provides deep stock management capabilities, a detailed
+     * TableView,
+     * and the "Register Medicine" form on the right panel.
+     * The built layout is cached in memory for immediate retrieval upon future
+     * navigation.
      */
     private void buildInventoryPage() {
         VBox center = createPageShell("Inventory Manager",
-                "Manage stock levels, reorder points, and supplier information");
+                "Manage stock levels, search medicines, and register new formulations");
 
         // Stat cards row
         HBox cards = new HBox(15);
         cards.getStyleClass().add("stat-cards-container");
-        
+
         VBox lowStockCard = createStatCard("Need Reorder", String.valueOf(countLowStock()), "stat-card-amber");
         lblInvLowStock = (Label) lowStockCard.getChildren().get(1);
-        
+
         VBox outOfStockCard = createStatCard("Out of Stock", String.valueOf(countOutOfStock()), "stat-card-rose");
         lblInvOutOfStock = (Label) outOfStockCard.getChildren().get(1);
 
@@ -541,11 +425,36 @@ public class MainController {
                 createStatCard("Total SKUs", String.valueOf(masterData.size()), "stat-card-teal"),
                 lowStockCard,
                 outOfStockCard,
-                createStatCard("Avg. Unit Price", String.format("\u20B5%.2f", avgPrice()), "stat-card-blue")
-        );
+                createStatCard("Avg. Unit Price", String.format("\u20B5%.2f", avgPrice()), "stat-card-blue"));
         for (Node card : cards.getChildren()) {
             HBox.setHgrow(card, Priority.ALWAYS);
         }
+
+        // Search and Filter Bar
+        HBox searchBar = new HBox(15);
+        searchBar.setAlignment(Pos.CENTER_LEFT);
+        searchBar.getStyleClass().add("filter-bar");
+        searchBar.setPadding(new Insets(12, 15, 12, 15));
+
+        TextField txtInvSearch = new TextField();
+        txtInvSearch.setPromptText("\uD83D\uDD0D Search code, name, category...");
+        txtInvSearch.getStyleClass().add("search-field");
+        txtInvSearch.setPrefHeight(38);
+        HBox.setHgrow(txtInvSearch, Priority.ALWAYS);
+
+        Label filterLabel = new Label("Filter:");
+        filterLabel.getStyleClass().add("filter-label");
+
+        ComboBox<String> comboInvFilter = new ComboBox<>();
+        comboInvFilter.getStyleClass().add("filter-combo");
+        comboInvFilter.setPrefHeight(38);
+        comboInvFilter.setPrefWidth(150);
+        comboInvFilter.setItems(
+                FXCollections.observableArrayList("All", "Analgesics", "Antibiotics", "Cardiovascular", "Antidiabetic",
+                        "Vitamins", "Gastrointestinal", "Antihistamines", "Respiratory", "Neurological", "Endocrine"));
+        comboInvFilter.setValue("All");
+
+        searchBar.getChildren().addAll(txtInvSearch, filterLabel, comboInvFilter);
 
         // Detailed inventory table
         TableView<Medicine> detailedTable = new TableView<>();
@@ -606,23 +515,85 @@ public class MainController {
         detailedTable.getColumns().add(cStock);
         detailedTable.getColumns().add(cStatus);
         detailedTable.getColumns().add(cPrice);
-
-
-
         detailedTable.getColumns().add(cValue);
-        detailedTable.setItems(masterData);
+
+        // Filtered list for search/filter
+        FilteredList<Medicine> invFiltered = new FilteredList<>(masterData, p -> true);
+
+        txtInvSearch.textProperty().addListener((obs, oldVal, newVal) -> {
+            invFiltered.setPredicate(med -> {
+                String search = newVal == null ? "" : newVal.toLowerCase().trim();
+                String cat = comboInvFilter.getValue();
+                if (cat != null && !"All".equals(cat) && !med.getCategory().equalsIgnoreCase(cat))
+                    return false;
+                if (search.isEmpty())
+                    return true;
+                return med.getCode().toLowerCase().contains(search) ||
+                        med.getName().toLowerCase().contains(search) ||
+                        med.getCategory().toLowerCase().contains(search);
+            });
+        });
+
+        comboInvFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
+            invFiltered.setPredicate(med -> {
+                String search = txtInvSearch.getText() == null ? "" : txtInvSearch.getText().toLowerCase().trim();
+                if (newVal != null && !"All".equals(newVal) && !med.getCategory().equalsIgnoreCase(newVal))
+                    return false;
+                if (search.isEmpty())
+                    return true;
+                return med.getCode().toLowerCase().contains(search) ||
+                        med.getName().toLowerCase().contains(search) ||
+                        med.getCategory().toLowerCase().contains(search);
+            });
+        });
+
+        SortedList<Medicine> invSorted = new SortedList<>(invFiltered);
+        invSorted.comparatorProperty().bind(detailedTable.comparatorProperty());
+        detailedTable.setItems(invSorted);
 
         VBox tableWrap = new VBox(detailedTable);
         tableWrap.getStyleClass().add("table-container");
         VBox.setVgrow(tableWrap, Priority.ALWAYS);
 
-        // Footer with Export CSV button
+        // Footer with Delete + Export CSV buttons
         HBox footer = new HBox(10);
         footer.setAlignment(Pos.CENTER_LEFT);
-        Label footerText = new Label("Inventory is synced with the Dashboard in real-time.");
-        footerText.getStyleClass().add("footer-help-text");
+
+        Button btnDeleteMed = new Button("\uD83D\uDDD1 Delete Selected");
+        btnDeleteMed.getStyleClass().add("action-button-delete");
+        btnDeleteMed.setPrefHeight(36);
+        btnDeleteMed.setOnAction(e -> {
+            Medicine selected = detailedTable.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                showAlert("Selection Required", "Please select a medicine from the table first.",
+                        Alert.AlertType.WARNING);
+                return;
+            }
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Deletion");
+            confirm.setHeaderText(null);
+            confirm.setContentText(
+                    "Are you sure you want to remove " + selected.getName() + " from the inventory database?");
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                try {
+                    com.pharmacy.util.DatabaseManager.deleteMedicine(selected.getCode());
+                    masterData.remove(selected);
+                    updateDashboardStatistics();
+                    showAlert("Deleted", "Medicine removed successfully.", Alert.AlertType.INFORMATION);
+                } catch (java.sql.SQLException ex) {
+                    showAlert("Database Error", "Failed to delete from database: " + ex.getMessage(),
+                            Alert.AlertType.ERROR);
+                }
+            }
+        });
+
         Region footerSpacer = new Region();
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
+
+        Label footerText = new Label("Inventory is synced with the Dashboard in real-time.");
+        footerText.getStyleClass().add("footer-help-text");
+
         Button btnExportInv = new Button("\uD83D\uDCE5 Export CSV");
         btnExportInv.getStyleClass().add("action-button-add");
         btnExportInv.setPrefHeight(36);
@@ -631,12 +602,101 @@ public class MainController {
             com.pharmacy.util.CsvExporter.exportInventory(masterData, stage);
             showAlert("Export Complete", "Inventory data exported successfully!", Alert.AlertType.INFORMATION);
         });
-        footer.getChildren().addAll(footerText, footerSpacer, btnExportInv);
 
-        center.getChildren().addAll(cards, tableWrap, footer);
+        footer.getChildren().addAll(btnDeleteMed, footerSpacer, footerText, btnExportInv);
 
-        // Right panel: Restock Quick Actions
-        VBox right = createRightPanelShell("Quick Restock", "Update stock levels for existing items");
+        center.getChildren().addAll(cards, searchBar, tableWrap, footer);
+
+        // Right panel: Register Medicine + Quick Restock
+        VBox right = createRightPanelShell("Register Medicine", "Add a new formulation to inventory");
+
+        // --- Add Medicine Form ---
+        VBox fldCode = createFormField("Medicine Code", "e.g. MED019");
+        VBox fldName = createFormField("Medicine Name", "e.g. Advil 200mg");
+
+        VBox fldCategory = new VBox(5);
+        Label lblCat = new Label("Category");
+        lblCat.getStyleClass().add("form-label");
+        ComboBox<String> comboAddCat = new ComboBox<>();
+        comboAddCat.setPromptText("Select Category");
+        comboAddCat.getStyleClass().add("form-combo");
+        comboAddCat.setMaxWidth(Double.MAX_VALUE);
+        comboAddCat.setItems(
+                FXCollections.observableArrayList("Analgesics", "Antibiotics", "Cardiovascular", "Antidiabetic",
+                        "Vitamins", "Gastrointestinal", "Antihistamines", "Respiratory", "Neurological", "Endocrine"));
+        fldCategory.getChildren().addAll(lblCat, comboAddCat);
+
+        VBox fldStock = createFormField("Opening Stock", "e.g. 100");
+        VBox fldPrice = createFormField("Unit Price (GHS)", "e.g. 12.99");
+
+        Button btnAddMed = new Button("\u2713 Register Medicine");
+        btnAddMed.getStyleClass().add("action-button-add");
+        btnAddMed.setMaxWidth(Double.MAX_VALUE);
+        btnAddMed.setPrefHeight(44);
+        btnAddMed.setOnAction(e -> {
+            TextField tCode = (TextField) fldCode.getChildren().get(1);
+            TextField tName = (TextField) fldName.getChildren().get(1);
+            String category = comboAddCat.getValue();
+            TextField tStock = (TextField) fldStock.getChildren().get(1);
+            TextField tPrice = (TextField) fldPrice.getChildren().get(1);
+
+            String code = tCode.getText().trim();
+            String name = tName.getText().trim();
+            String stockStr = tStock.getText().trim();
+            String priceStr = tPrice.getText().trim();
+
+            if (code.isEmpty() || name.isEmpty() || category == null || stockStr.isEmpty() || priceStr.isEmpty()) {
+                showAlert("Input Validation Error", "All fields are required to register a medicine.",
+                        Alert.AlertType.ERROR);
+                return;
+            }
+
+            try {
+                int stock = Integer.parseInt(stockStr);
+                double price = Double.parseDouble(priceStr);
+
+                if (stock < 0 || price < 0) {
+                    showAlert("Input Validation Error", "Stock and Price cannot be negative.", Alert.AlertType.ERROR);
+                    return;
+                }
+
+                String status = "In Stock";
+                if (stock == 0)
+                    status = "Out of Stock";
+                else if (stock < 30)
+                    status = "Low Stock";
+
+                Medicine newMed = new Medicine(code, name, category, stock, status, price);
+                try {
+                    com.pharmacy.util.DatabaseManager.addMedicine(newMed);
+                    masterData.add(newMed);
+                } catch (java.sql.SQLException ex) {
+                    showAlert("Database Error", "Failed to save medicine to database: " + ex.getMessage(),
+                            Alert.AlertType.ERROR);
+                    return;
+                }
+
+                tCode.clear();
+                tName.clear();
+                comboAddCat.setValue(null);
+                tStock.clear();
+                tPrice.clear();
+                updateDashboardStatistics();
+                showAlert("Success", "Medicine successfully added to inventory!", Alert.AlertType.INFORMATION);
+
+            } catch (NumberFormatException ex) {
+                showAlert("Input Validation Error", "Stock must be an integer, and Price must be a decimal value.",
+                        Alert.AlertType.ERROR);
+            }
+        });
+
+        Separator midSep = new Separator();
+        midSep.getStyleClass().add("panel-separator");
+
+        // --- Quick Restock Section ---
+        Label restockTitle = new Label("Quick Restock");
+        restockTitle.getStyleClass().add("panel-title");
+        restockTitle.setStyle("-fx-font-size: 14px;");
 
         Label lblSelectInfo = new Label("Select an item from the table, then set the new stock quantity below.");
         lblSelectInfo.getStyleClass().add("form-label");
@@ -652,7 +712,8 @@ public class MainController {
         btnRestock.setOnAction(e -> {
             Medicine selected = detailedTable.getSelectionModel().getSelectedItem();
             if (selected == null) {
-                showAlert("Selection Required", "Please select a medicine from the table first.", Alert.AlertType.WARNING);
+                showAlert("Selection Required", "Please select a medicine from the table first.",
+                        Alert.AlertType.WARNING);
                 return;
             }
             try {
@@ -662,22 +723,26 @@ public class MainController {
                     return;
                 }
                 String status = "In Stock";
-                if (newStock == 0) status = "Out of Stock";
-                else if (newStock < 30) status = "Low Stock";
-                
+                if (newStock == 0)
+                    status = "Out of Stock";
+                else if (newStock < 30)
+                    status = "Low Stock";
+
                 try {
                     com.pharmacy.util.DatabaseManager.updateMedicineStock(selected.getCode(), newStock, status);
                     selected.setStock(newStock);
                     selected.setStatus(status);
                     detailedTable.refresh();
                 } catch (java.sql.SQLException ex) {
-                    showAlert("Database Error", "Failed to update stock in database: " + ex.getMessage(), Alert.AlertType.ERROR);
+                    showAlert("Database Error", "Failed to update stock in database: " + ex.getMessage(),
+                            Alert.AlertType.ERROR);
                     return;
                 }
-                
+
                 txtNewStock.clear();
                 updateDashboardStatistics();
-                showAlert("Success", selected.getName() + " restocked to " + newStock + " units.", Alert.AlertType.INFORMATION);
+                showAlert("Success", selected.getName() + " restocked to " + newStock + " units.",
+                        Alert.AlertType.INFORMATION);
             } catch (NumberFormatException ex) {
                 showAlert("Invalid Input", "Please enter a valid integer for stock quantity.", Alert.AlertType.ERROR);
             }
@@ -692,20 +757,19 @@ public class MainController {
         inventoryAlertsBox.setPadding(new Insets(15, 15, 15, 15));
         refreshInventoryAlerts();
 
-        right.getChildren().addAll(lblSelectInfo, fldNewStock, btnRestock, spacer, inventoryAlertsBox);
+        right.getChildren().addAll(
+                fldCode, fldName, fldCategory, fldStock, fldPrice, btnAddMed,
+                midSep,
+                restockTitle, lblSelectInfo, fldNewStock, btnRestock,
+                spacer, inventoryAlertsBox);
 
         inventoryCenter = center;
         inventoryRight = right;
     }
 
-    /**
-     * Constructs the Point of Sale (POS) page programmatically.
-     * Includes a real-time shopping cart, inventory selection, customer association, 
-     * and a dynamic "Change Calculator" that strictly validates payments before checkout.
-     */
     private void buildSalesPage() {
         VBox center = createPageShell("Point of Sale",
-                "Select medicines, set quantity, and process customer transactions");
+                "Select medicines, set quantity, and process walk-in transactions");
 
         // ---- Add-to-Cart Bar ----
         HBox addBar = new HBox(12);
@@ -713,18 +777,39 @@ public class MainController {
         addBar.getStyleClass().add("filter-bar");
         addBar.setPadding(new Insets(12, 15, 12, 15));
 
+        // Medicine Search Field
+        TextField txtMedSearch = new TextField();
+        txtMedSearch.setPromptText("\uD83D\uDD0D Search Med...");
+        txtMedSearch.getStyleClass().add("search-field");
+        txtMedSearch.setPrefHeight(38);
+        txtMedSearch.setPrefWidth(140);
+
         // Medicine ComboBox — populated from live inventory
         ComboBox<String> comboMedicine = new ComboBox<>();
         comboMedicine.setPromptText("Select Medicine...");
         comboMedicine.getStyleClass().add("filter-combo");
         comboMedicine.setPrefHeight(38);
-        comboMedicine.setPrefWidth(280);
-        for (Medicine m : masterData) {
-            if (m.getStock() > 0) {
-                comboMedicine.getItems().add(m.getCode() + " \u2014 " + m.getName()
-                        + "  [\u20B5" + String.format("%.2f", m.getPrice()) + ", Stock: " + m.getStock() + "]");
+        comboMedicine.setPrefWidth(260);
+
+        Runnable updateCombo = () -> {
+            comboMedicine.getItems().clear();
+            String search = txtMedSearch.getText().toLowerCase();
+            for (Medicine m : masterData) {
+                if (m.getStock() > 0) {
+                    String display = m.getCode() + " \u2014 " + m.getName() + "  [\u20B5"
+                            + String.format("%.2f", m.getPrice()) + ", Stock: " + m.getStock() + "]";
+                    if (search.isEmpty() || display.toLowerCase().contains(search)) {
+                        comboMedicine.getItems().add(display);
+                    }
+                }
             }
-        }
+            if (!comboMedicine.getItems().isEmpty()) {
+                comboMedicine.getSelectionModel().selectFirst();
+            }
+        };
+
+        txtMedSearch.textProperty().addListener((obs, oldV, newV) -> updateCombo.run());
+        updateCombo.run();
 
         // Quantity field
         TextField txtQty = new TextField();
@@ -738,20 +823,7 @@ public class MainController {
         btnAddToCart.getStyleClass().add("action-button-add");
         btnAddToCart.setPrefHeight(38);
 
-        // Vertical separator
-        Separator vertSep = new Separator(Orientation.VERTICAL);
-        vertSep.setPrefHeight(30);
-
-        // Customer ID field
-        Label lblCust = new Label("Customer ID:");
-        lblCust.getStyleClass().add("filter-label");
-        TextField txtCustId = new TextField();
-        txtCustId.setPromptText("e.g. C001 (optional)");
-        txtCustId.getStyleClass().add("form-field");
-        txtCustId.setPrefWidth(150);
-        txtCustId.setPrefHeight(38);
-
-        addBar.getChildren().addAll(comboMedicine, txtQty, btnAddToCart, vertSep, lblCust, txtCustId);
+        addBar.getChildren().addAll(txtMedSearch, comboMedicine, txtQty, btnAddToCart);
 
         // ---- Cart Table ----
         TableView<CartItem> cartTable = new TableView<>();
@@ -759,19 +831,18 @@ public class MainController {
         cartTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         VBox.setVgrow(cartTable, Priority.ALWAYS);
         cartTable.setItems(cartItems);
-        cartTable.setPlaceholder(new Label("Cart is empty — select a medicine above and click 'Add to Cart'"));
 
         TableColumn<CartItem, String> cMed = new TableColumn<>("Medicine");
         cMed.setCellValueFactory(c -> c.getValue().nameProperty());
-        cMed.setPrefWidth(220);
+        cMed.setPrefWidth(180);
 
         TableColumn<CartItem, Integer> cQty = new TableColumn<>("Qty");
         cQty.setCellValueFactory(c -> c.getValue().quantityProperty().asObject());
-        cQty.setPrefWidth(70);
+        cQty.setPrefWidth(60);
 
         TableColumn<CartItem, Double> cUnitP = new TableColumn<>("Unit Price");
         cUnitP.setCellValueFactory(c -> c.getValue().unitPriceProperty().asObject());
-        cUnitP.setPrefWidth(110);
+        cUnitP.setPrefWidth(90);
         cUnitP.setCellFactory(tc -> new TableCell<>() {
             @Override
             protected void updateItem(Double p, boolean empty) {
@@ -782,7 +853,7 @@ public class MainController {
 
         TableColumn<CartItem, Double> cSub = new TableColumn<>("Subtotal");
         cSub.setCellValueFactory(c -> c.getValue().subtotalProperty().asObject());
-        cSub.setPrefWidth(110);
+        cSub.setPrefWidth(100);
         cSub.setCellFactory(tc -> new TableCell<>() {
             @Override
             protected void updateItem(Double p, boolean empty) {
@@ -791,11 +862,10 @@ public class MainController {
             }
         });
 
-        // Remove button column
-        TableColumn<CartItem, Void> cRemove = new TableColumn<>("Action");
-        cRemove.setPrefWidth(80);
+        TableColumn<CartItem, Void> cRemove = new TableColumn<>("");
+        cRemove.setPrefWidth(60);
         cRemove.setCellFactory(tc -> new TableCell<>() {
-            private final Button btn = new Button("\u2715 Remove");
+            private final Button btn = new Button("\u2715");
             {
                 btn.getStyleClass().add("action-button-delete");
                 btn.setStyle("-fx-padding: 3 10; -fx-font-size: 11;");
@@ -805,9 +875,10 @@ public class MainController {
                     updateCartTotal();
                 });
             }
+
             @Override
             protected void updateItem(Void v, boolean empty) {
-                super.updateItem(v, empty);
+                super.updateItem(empty ? null : v, empty);
                 setGraphic(empty ? null : btn);
             }
         });
@@ -836,25 +907,22 @@ public class MainController {
 
         Region footerSpacer = new Region();
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
-        
+
         // Calculator
         TextField txtTendered = new TextField();
         txtTendered.setPromptText("Tendered (\u20B5)");
         txtTendered.getStyleClass().add("form-field");
         txtTendered.setPrefWidth(120);
         txtTendered.setPrefHeight(40);
-        
+
         Label lblChange = new Label("Change: \u20B50.00");
         lblChange.getStyleClass().add("form-label");
         lblChange.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
         // --- Change Calculator Logic ---
-        // Listens to the tendered text field and compares it to the cart subtotal in real-time.
-        // Provides instant color-coded visual feedback (Green for OK, Red for Insufficient).
         txtTendered.textProperty().addListener((obs, oldV, newV) -> {
             try {
-                double total = 0;
-                for (CartItem item : cartItems) total += item.getSubtotal();
+                double total = getCartTotal();
                 if (newV.isEmpty()) {
                     lblChange.setText("Change: \u20B50.00");
                     lblChange.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: -fx-text-primary;");
@@ -890,15 +958,18 @@ public class MainController {
         btnCheckout.setPrefHeight(44);
         btnCheckout.setPrefWidth(170);
 
-        footerBar.getChildren().addAll(btnClear, footerSpacer, txtTendered, lblChange, lblTotalTag, lblCartTotal, btnCheckout);
+        footerBar.getChildren().addAll(btnClear, footerSpacer, txtTendered, lblChange, lblTotalTag, lblCartTotal,
+                btnCheckout);
 
         // ---- Add-to-Cart Action Engine ----
         btnAddToCart.setOnAction(e -> {
-            int selectedIdx = comboMedicine.getSelectionModel().getSelectedIndex();
-            if (selectedIdx < 0) {
+            String sel = comboMedicine.getValue();
+            if (sel == null) {
                 showAlert("No Selection", "Please select a medicine from the dropdown.", Alert.AlertType.WARNING);
                 return;
             }
+            String code = sel.split(" \u2014 ")[0];
+
             String qtyStr = txtQty.getText().trim();
             if (qtyStr.isEmpty()) {
                 showAlert("No Quantity", "Please enter a quantity.", Alert.AlertType.WARNING);
@@ -910,16 +981,16 @@ public class MainController {
                     showAlert("Invalid Quantity", "Quantity must be greater than zero.", Alert.AlertType.ERROR);
                     return;
                 }
-                // Find the medicine — match by index of in-stock items
-                int inStockIdx = 0;
+
                 Medicine med = null;
                 for (Medicine m : masterData) {
-                    if (m.getStock() > 0) {
-                        if (inStockIdx == selectedIdx) { med = m; break; }
-                        inStockIdx++;
+                    if (m.getCode().equals(code)) {
+                        med = m;
+                        break;
                     }
                 }
-                if (med == null) return;
+                if (med == null)
+                    return;
 
                 // Check stock availability (account for items already in cart)
                 int alreadyInCart = 0;
@@ -966,15 +1037,17 @@ public class MainController {
             }
 
             // Calculate total
-            double total = 0;
-            for (CartItem item : cartItems) total += item.getSubtotal();
-            
+            double total = getCartTotal();
+
             // Validate tendered amount
             if (!txtTendered.getText().isEmpty()) {
                 try {
                     double tendered = Double.parseDouble(txtTendered.getText());
                     if (tendered < total) {
-                        showAlert("Insufficient Funds", "Amount tendered (\u20B5" + String.format("%.2f", tendered) + ") is less than the total (\u20B5" + String.format("%.2f", total) + ").", Alert.AlertType.ERROR);
+                        showAlert("Insufficient Funds",
+                                "Amount tendered (\u20B5" + String.format("%.2f", tendered)
+                                        + ") is less than the total (\u20B5" + String.format("%.2f", total) + ").",
+                                Alert.AlertType.ERROR);
                         return;
                     }
                 } catch (NumberFormatException ex) {
@@ -986,13 +1059,12 @@ public class MainController {
             // Record transaction
             txnCounter++;
             String txnId = String.format("TXN%03d", txnCounter);
-            String custId = txtCustId.getText().trim();
-            Transaction txn = new Transaction(txnId, custId,
+            Transaction txn = new Transaction(txnId,
                     FXCollections.observableArrayList(cartItems), total);
-                    
+
             try {
                 com.pharmacy.util.DatabaseManager.saveTransaction(txn);
-                
+
                 // Deduct stock from inventory
                 for (CartItem item : cartItems) {
                     for (Medicine m : masterData) {
@@ -1000,11 +1072,13 @@ public class MainController {
                             int newStock = m.getStock() - item.getQuantity();
                             newStock = Math.max(0, newStock);
                             String status = "In Stock";
-                            if (newStock == 0) status = "Out of Stock";
-                            else if (newStock < 30) status = "Low Stock";
-                            
+                            if (newStock == 0)
+                                status = "Out of Stock";
+                            else if (newStock < 30)
+                                status = "Low Stock";
+
                             com.pharmacy.util.DatabaseManager.updateMedicineStock(m.getCode(), newStock, status);
-                            
+
                             m.setStock(newStock);
                             m.setStatus(status);
                             break;
@@ -1013,26 +1087,30 @@ public class MainController {
                 }
                 transactionHistory.add(0, txn);
             } catch (java.sql.SQLException ex) {
-                showAlert("Database Error", "Failed to save sale to database: " + ex.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Database Error", "Failed to save sale to database: " + ex.getMessage(),
+                        Alert.AlertType.ERROR);
                 return;
             }
 
             // Clear cart and refresh
             cartItems.clear();
-            txtCustId.clear();
             txtTendered.clear();
             lblChange.setText("Change: \u20B50.00");
             updateCartTotal();
             updateDashboardStatistics();
 
-            // Refresh medicine dropdown to reflect new stock
-            comboMedicine.getItems().clear();
-            for (Medicine m : masterData) {
-                if (m.getStock() > 0) {
-                    comboMedicine.getItems().add(m.getCode() + " \u2014 " + m.getName()
-                            + "  [\u20B5" + String.format("%.2f", m.getPrice()) + ", Stock: " + m.getStock() + "]");
-                }
+            // Update Transaction History Stats
+            if (txnTotalCountLabel != null && txnTotalRevenueLabel != null) {
+                txnTotalCountLabel.setText(String.valueOf(transactionHistory.size()));
+                double tRev = 0;
+                for (Transaction t : transactionHistory)
+                    tRev += t.getTotal();
+                txnTotalRevenueLabel.setText("\u20B5" + String.format("%.2f", tRev));
             }
+
+            // Refresh medicine dropdown to reflect new stock
+            txtMedSearch.clear();
+            updateCombo.run();
 
             showAlert("Sale Complete",
                     "Transaction " + txnId + " recorded.\nTotal: \u20B5" + String.format("%.2f", total),
@@ -1041,181 +1119,54 @@ public class MainController {
 
         center.getChildren().addAll(addBar, tableWrap, footerBar);
 
-        // ---- Right Panel: Transaction History ----
-        VBox right = createRightPanelShell("Transaction History", "Click a row to view full receipt");
-
-        // Filter Dropdown
-        ComboBox<String> comboTimeFilter = new ComboBox<>(FXCollections.observableArrayList("All Time", "Today", "This Week", "This Month"));
-        comboTimeFilter.setValue("All Time");
-        comboTimeFilter.getStyleClass().add("form-combo");
-        comboTimeFilter.setMaxWidth(Double.MAX_VALUE);
-        
-        FilteredList<Transaction> filteredTxns = new FilteredList<>(transactionHistory, p -> true);
-        comboTimeFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
-            filteredTxns.setPredicate(txn -> {
-                if ("All Time".equals(newVal)) return true;
-                try {
-                    java.time.LocalDateTime txnDate = java.time.LocalDateTime.parse(txn.getDateTime(), java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-                    java.time.LocalDateTime now = java.time.LocalDateTime.now();
-                    if ("Today".equals(newVal)) {
-                        return txnDate.toLocalDate().equals(now.toLocalDate());
-                    } else if ("This Week".equals(newVal)) {
-                        return txnDate.isAfter(now.minusDays(7));
-                    } else if ("This Month".equals(newVal)) {
-                        return txnDate.getMonth() == now.getMonth() && txnDate.getYear() == now.getYear();
-                    }
-                } catch (Exception ex) {
-                    return true;
-                }
-                return true;
-            });
-        });
-
-        TableView<Transaction> txnTable = new TableView<>();
-        txnTable.getStyleClass().add("modern-table");
-        txnTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        VBox.setVgrow(txnTable, Priority.ALWAYS);
-        txnTable.setItems(filteredTxns);
-
-        TableColumn<Transaction, String> tId = new TableColumn<>("ID");
-        tId.setCellValueFactory(c -> c.getValue().txnIdProperty());
-        tId.setPrefWidth(65);
-
-        TableColumn<Transaction, String> tCust = new TableColumn<>("Customer");
-        tCust.setCellValueFactory(c -> c.getValue().customerIdProperty());
-        tCust.setPrefWidth(70);
-
-        TableColumn<Transaction, Double> tTotal = new TableColumn<>("Total");
-        tTotal.setCellValueFactory(c -> c.getValue().totalProperty().asObject());
-        tTotal.setPrefWidth(80);
-        tTotal.setCellFactory(tc -> new TableCell<>() {
-            @Override
-            protected void updateItem(Double p, boolean empty) {
-                super.updateItem(p, empty);
-                setText(empty || p == null ? null : String.format("\u20B5%.2f", p));
-            }
-        });
-
-        txnTable.getColumns().add(tId);
-        txnTable.getColumns().add(tCust);
-        txnTable.getColumns().add(tTotal);
-
-        // Double-click to view receipt
-        txnTable.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
-                Transaction selected = txnTable.getSelectionModel().getSelectedItem();
-                if (selected != null) showTransactionDetails(selected);
-            }
-        });
-
-        Button btnViewReceipt = new Button("\uD83D\uDCCB View Receipt");
-        btnViewReceipt.getStyleClass().add("action-button-add");
-        btnViewReceipt.setMaxWidth(Double.MAX_VALUE);
-        btnViewReceipt.setPrefHeight(38);
-        btnViewReceipt.setOnAction(e -> {
-            Transaction selected = txnTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                showAlert("No Selection", "Select a transaction to view its receipt.", Alert.AlertType.WARNING);
-                return;
-            }
-            showTransactionDetails(selected);
-        });
-
-        VBox txnTableWrap = new VBox(txnTable);
-        txnTableWrap.getStyleClass().add("table-container");
-        VBox.setVgrow(txnTableWrap, Priority.ALWAYS);
-
-        // Today's summary card
-        VBox summaryCard = new VBox(6);
-        summaryCard.getStyleClass().addAll("stat-card", "stat-card-teal");
-        summaryCard.setPadding(new Insets(15));
-        Label summaryTitle = new Label("Summary");
-        summaryTitle.getStyleClass().addAll("stat-label", "text-cyan");
-        summaryTitle.setStyle("-fx-font-weight: bold;");
-        Label summaryCount = new Label(transactionHistory.size() + " transactions recorded");
-        summaryCount.getStyleClass().addAll("form-label", "text-primary");
-        double totalRevenue = 0;
-        for (Transaction t : transactionHistory) totalRevenue += t.getTotal();
-        Label summaryRev = new Label("Total revenue: \u20B5" + String.format("%.2f", totalRevenue));
-        summaryRev.getStyleClass().add("form-label");
-        summaryCard.getChildren().addAll(summaryTitle, summaryCount, summaryRev);
-
-        Button btnExportSales = new Button("\uD83D\uDCE5 Export CSV");
-        btnExportSales.getStyleClass().add("action-button-add");
-        btnExportSales.setMaxWidth(Double.MAX_VALUE);
-        btnExportSales.setPrefHeight(38);
-        btnExportSales.setOnAction(e -> {
-            javafx.stage.Stage stage = (javafx.stage.Stage) rootPane.getScene().getWindow();
-            com.pharmacy.util.CsvExporter.exportTransactions(transactionHistory, stage);
-            showAlert("Export Complete", "Transaction data exported successfully!", Alert.AlertType.INFORMATION);
-        });
-
-        right.getChildren().addAll(comboTimeFilter, txnTableWrap, btnViewReceipt, btnExportSales, summaryCard);
-
         salesCenter = center;
-        salesRight = right;
+        salesRight = null;
     }
 
-    /**
-     * Updates the cart total label to reflect current cart contents.
-     */
     private void updateCartTotal() {
-        double total = 0;
-        for (CartItem item : cartItems) total += item.getSubtotal();
+        double total = getCartTotal();
         if (cartTotalLabel != null) {
-            cartTotalLabel.setText(String.format("\u20B5%.2f", total));
+            cartTotalLabel.setText("Cart Total: \u20B5" + String.format("%.2f", total));
         }
     }
 
-    /**
-     * Shows a detailed receipt dialog for a completed transaction.
-     */
-    private void showTransactionDetails(Transaction txn) {
-        Alert details = new Alert(Alert.AlertType.INFORMATION);
-        details.setTitle("Transaction Receipt");
-        details.setHeaderText("Receipt \u2014 " + txn.getTxnId());
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("Date:       ").append(txn.getDateTime()).append("\n");
-        sb.append("Customer:   ").append(txn.getCustomerId()).append("\n");
-        sb.append("Items:      ").append(txn.getItemCount()).append("\n");
-        sb.append("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n");
-        for (CartItem item : txn.getItems()) {
-            sb.append(String.format("%-22s x%-3d @ \u20B5%-8.2f = \u20B5%.2f\n",
-                    item.getName(), item.getQuantity(), item.getUnitPrice(), item.getSubtotal()));
-        }
-        sb.append("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n");
-        sb.append(String.format("TOTAL:  \u20B5%.2f", txn.getTotal()));
-
-        details.setContentText(sb.toString());
-
-        DialogPane pane = details.getDialogPane();
-        pane.getStyleClass().add("alert-dialog");
-        pane.setPrefWidth(450);
-        URL cssResource = getClass().getResource("/com/pharmacy/style/styles.css");
-        if (cssResource != null) {
-            pane.getStylesheets().add(cssResource.toExternalForm());
-        }
-
-        details.showAndWait();
+    private double getCartTotal() {
+        double total = 0;
+        for (CartItem ci : cartItems)
+            total += ci.getSubtotal();
+        return total;
     }
 
     /**
-     * Builds the Customer Records page — customer database with add/search.
+     * Constructs the Transaction History page.
      */
-    private void buildCustomersPage() {
-        VBox center = createPageShell("Customer Records",
-                "Manage your customer database and purchase history");
+    private void buildTransactionHistoryPage() {
+        VBox center = createPageShell("Transaction History",
+                "View and manage past sales transactions");
 
-        // Stat cards
+        // Stat Cards
         HBox cards = new HBox(15);
         cards.getStyleClass().add("stat-cards-container");
-        cards.getChildren().addAll(
-                createStatCard("Total Customers", String.valueOf(customerData.size()), "stat-card-teal"),
-                createStatCard("Active This Month", "4", "stat-card-blue"),
-                createStatCard("Total Revenue", "\u20B52,243.10", "stat-card-amber"),
-                createStatCard("Avg. Spend", String.format("\u20B5%.2f", 2243.10 / customerData.size()), "stat-card-rose")
-        );
+
+        double totalRevenue = 0;
+        for (Transaction t : transactionHistory)
+            totalRevenue += t.getTotal();
+
+        txnTotalCountLabel = new Label(String.valueOf(transactionHistory.size()));
+        txnTotalCountLabel.getStyleClass().add("stat-value");
+        VBox card1 = new VBox(5, new Label("Total Transactions"), txnTotalCountLabel);
+        card1.getStyleClass().addAll("stat-card", "stat-card-teal");
+        card1.setPadding(new Insets(15, 20, 15, 20));
+        ((Label) card1.getChildren().get(0)).getStyleClass().add("stat-label");
+
+        txnTotalRevenueLabel = new Label("\u20B5" + String.format("%.2f", totalRevenue));
+        txnTotalRevenueLabel.getStyleClass().add("stat-value");
+        VBox card2 = new VBox(5, new Label("Total Revenue"), txnTotalRevenueLabel);
+        card2.getStyleClass().addAll("stat-card", "stat-card-blue");
+        card2.setPadding(new Insets(15, 20, 15, 20));
+        ((Label) card2.getChildren().get(0)).getStyleClass().add("stat-label");
+
+        cards.getChildren().addAll(card1, card2);
         for (Node card : cards.getChildren()) {
             HBox.setHgrow(card, Priority.ALWAYS);
         }
@@ -1225,213 +1176,153 @@ public class MainController {
         searchBar.setAlignment(Pos.CENTER_LEFT);
         searchBar.getStyleClass().add("filter-bar");
         searchBar.setPadding(new Insets(12, 15, 12, 15));
-        TextField custSearch = new TextField();
-        custSearch.setPromptText("\uD83D\uDD0D Search by name, ID, or email...");
-        custSearch.getStyleClass().add("search-field");
-        custSearch.setPrefHeight(38);
-        HBox.setHgrow(custSearch, Priority.ALWAYS);
-        searchBar.getChildren().add(custSearch);
 
-        // Customer table
-        TableView<String[]> custTable = new TableView<>();
-        custTable.getStyleClass().add("modern-table");
-        custTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        VBox.setVgrow(custTable, Priority.ALWAYS);
+        TextField txtTxnSearch = new TextField();
+        txtTxnSearch.setPromptText("\uD83D\uDD0D Search transactions by ID...");
+        txtTxnSearch.getStyleClass().add("search-field");
+        txtTxnSearch.setPrefHeight(38);
+        HBox.setHgrow(txtTxnSearch, Priority.ALWAYS);
 
-        String[] headers = {"ID", "Full Name", "Phone", "Email", "Purchases", "Total Spent"};
-        int[] widths = {60, 160, 100, 180, 85, 100};
-        for (int i = 0; i < headers.length; i++) {
-            final int idx = i;
-            TableColumn<String[], String> col = new TableColumn<>(headers[i]);
-            col.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue()[idx]));
-            col.setPrefWidth(widths[i]);
-            custTable.getColumns().add(col);
-        }
+        ComboBox<String> comboTimeFilter = new ComboBox<>(
+                FXCollections.observableArrayList("All Time", "Today", "This Week", "This Month"));
+        comboTimeFilter.setValue("All Time");
+        comboTimeFilter.getStyleClass().add("form-combo");
+        comboTimeFilter.setPrefHeight(38);
 
-        // Wrap in filterable list
-        FilteredList<String[]> filteredCustomers = new FilteredList<>(customerData, p -> true);
-        custSearch.textProperty().addListener((obs, oldVal, newVal) -> {
-            String query = newVal.toLowerCase().trim();
-            filteredCustomers.setPredicate(c -> {
-                if (query.isEmpty()) return true;
-                for (String field : c) {
-                    if (field.toLowerCase().contains(query)) return true;
-                }
-                return false;
-            });
+        searchBar.getChildren().addAll(txtTxnSearch, comboTimeFilter);
+
+        // Transaction Table
+        TableView<Transaction> txnTable = new TableView<>();
+        txnTable.getStyleClass().add("modern-table");
+        txnTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        VBox.setVgrow(txnTable, Priority.ALWAYS);
+
+        TableColumn<Transaction, String> cId = new TableColumn<>("Transaction ID");
+        cId.setCellValueFactory(c -> c.getValue().txnIdProperty());
+
+        TableColumn<Transaction, String> cDate = new TableColumn<>("Date & Time");
+        cDate.setCellValueFactory(c -> c.getValue().dateTimeProperty());
+
+        TableColumn<Transaction, Integer> cItems = new TableColumn<>("Items");
+        cItems.setCellValueFactory(c -> c.getValue().itemCountProperty().asObject());
+
+        TableColumn<Transaction, Double> cTotal = new TableColumn<>("Total Amount");
+        cTotal.setCellValueFactory(c -> c.getValue().totalProperty().asObject());
+        cTotal.setCellFactory(tc -> new TableCell<>() {
+            @Override
+            protected void updateItem(Double p, boolean empty) {
+                super.updateItem(p, empty);
+                setText(empty || p == null ? null : String.format("\u20B5%.2f", p));
+            }
         });
-        SortedList<String[]> sortedCustomers = new SortedList<>(filteredCustomers);
-        sortedCustomers.comparatorProperty().bind(custTable.comparatorProperty());
-        custTable.setItems(sortedCustomers);
 
-        VBox tableWrap = new VBox(custTable);
+        txnTable.getColumns().add(cId);
+        txnTable.getColumns().add(cDate);
+        txnTable.getColumns().add(cItems);
+        txnTable.getColumns().add(cTotal);
+
+        FilteredList<Transaction> filteredTxns = new FilteredList<>(transactionHistory, p -> true);
+
+        java.util.function.Predicate<Transaction> filterLogic = t -> {
+            String search = txtTxnSearch.getText().toLowerCase();
+            if (!t.getTxnId().toLowerCase().contains(search))
+                return false;
+
+            String timeFilter = comboTimeFilter.getValue();
+            if ("All Time".equals(timeFilter))
+                return true;
+
+            try {
+                java.time.LocalDateTime txnDate = java.time.LocalDateTime.parse(t.getDateTime(),
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                if ("Today".equals(timeFilter)) {
+                    return txnDate.toLocalDate().equals(now.toLocalDate());
+                } else if ("This Week".equals(timeFilter)) {
+                    return txnDate.isAfter(now.minusDays(7));
+                } else if ("This Month".equals(timeFilter)) {
+                    return txnDate.getMonth() == now.getMonth() && txnDate.getYear() == now.getYear();
+                }
+            } catch (Exception ex) {
+                return true;
+            }
+            return true;
+        };
+
+        txtTxnSearch.textProperty().addListener((obs, oldVal, newVal) -> filteredTxns.setPredicate(filterLogic));
+        comboTimeFilter.valueProperty().addListener((obs, oldVal, newVal) -> filteredTxns.setPredicate(filterLogic));
+
+        txnTable.setItems(filteredTxns);
+
+        VBox tableWrap = new VBox(txnTable);
         tableWrap.getStyleClass().add("table-container");
         VBox.setVgrow(tableWrap, Priority.ALWAYS);
 
-        // Footer with delete
+        // Footer
         HBox footer = new HBox(10);
         footer.setAlignment(Pos.CENTER_LEFT);
-        Button btnDeleteCust = new Button("\uD83D\uDDD1 Remove Customer");
-        btnDeleteCust.getStyleClass().add("action-button-delete");
-        btnDeleteCust.setPrefHeight(36);
-        btnDeleteCust.setOnAction(e -> {
-            String[] selected = custTable.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                showAlert("Selection Required", "Please select a customer from the table.", Alert.AlertType.WARNING);
-                return;
-            }
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Confirm Deletion");
-            confirm.setHeaderText(null);
-            confirm.setContentText("Remove customer " + selected[1] + " from records?");
-            Optional<ButtonType> result = confirm.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                try {
-                    com.pharmacy.util.DatabaseManager.deleteCustomer(selected[0]);
-                    customerData.remove(selected);
-                    showAlert("Deleted", "Customer removed successfully.", Alert.AlertType.INFORMATION);
-                } catch (java.sql.SQLException ex) {
-                    showAlert("Database Error", "Failed to delete customer: " + ex.getMessage(), Alert.AlertType.ERROR);
-                }
-            }
-        });
+
         Region fSpacer = new Region();
         HBox.setHgrow(fSpacer, Priority.ALWAYS);
-        Label helpText = new Label("Select a customer record to view details or remove.");
-        helpText.getStyleClass().add("footer-help-text");
-        footer.getChildren().addAll(btnDeleteCust, fSpacer, helpText);
+
+        Button btnExportSales = new Button("\uD83D\uDCE5 Export CSV");
+        btnExportSales.getStyleClass().add("action-button-add");
+        btnExportSales.setPrefHeight(36);
+        btnExportSales.setOnAction(e -> {
+            javafx.stage.Stage stage = (javafx.stage.Stage) rootPane.getScene().getWindow();
+            com.pharmacy.util.CsvExporter.exportTransactions(transactionHistory, stage);
+            showAlert("Export Complete", "Transaction data exported successfully!", Alert.AlertType.INFORMATION);
+        });
+
+        footer.getChildren().addAll(fSpacer, btnExportSales);
 
         center.getChildren().addAll(cards, searchBar, tableWrap, footer);
 
-        // Right panel: Add Customer form
-        VBox right = createRightPanelShell("Add Customer", "Register a new customer to the database");
+        // Right panel: Transaction Details (Receipt)
+        VBox right = createRightPanelShell("Receipt Details", "Select a transaction to view receipt");
+        right.setPrefWidth(480);
 
-        VBox fldId = createFormField("Customer ID", "e.g. C006");
-        VBox fldName = createFormField("Full Name", "e.g. John Smith");
-        VBox fldPhone = createFormField("Phone Number", "e.g. 555-1234");
-        VBox fldEmail = createFormField("Email Address", "e.g. john@email.com");
+        TextArea receiptArea = new TextArea();
+        receiptArea.setEditable(false);
+        receiptArea.setWrapText(false);
+        receiptArea.setStyle("-fx-font-family: monospace; -fx-font-size: 14px;");
+        VBox.setVgrow(receiptArea, Priority.ALWAYS);
 
-        Button btnAddCust = new Button("\u2713 Register Customer");
-        btnAddCust.getStyleClass().add("action-button-add");
-        btnAddCust.setMaxWidth(Double.MAX_VALUE);
-        btnAddCust.setPrefHeight(44);
-        btnAddCust.setOnAction(e -> {
-            TextField tId = (TextField) fldId.getChildren().get(1);
-            TextField tName = (TextField) fldName.getChildren().get(1);
-            TextField tPhone = (TextField) fldPhone.getChildren().get(1);
-            TextField tEmail = (TextField) fldEmail.getChildren().get(1);
-            if (tId.getText().trim().isEmpty() || tName.getText().trim().isEmpty()) {
-                showAlert("Validation Error", "Customer ID and Name are required.", Alert.AlertType.ERROR);
-                return;
-            }
-            String[] newCust = new String[]{
-                    tId.getText().trim(), tName.getText().trim(),
-                    tPhone.getText().trim(), tEmail.getText().trim(), "0", "\u20B50.00"
-            };
-            try {
-                com.pharmacy.util.DatabaseManager.addCustomer(newCust);
-                customerData.add(newCust);
-                tId.clear(); tName.clear(); tPhone.clear(); tEmail.clear();
-                showAlert("Success", "Customer registered successfully!", Alert.AlertType.INFORMATION);
-            } catch (java.sql.SQLException ex) {
-                showAlert("Database Error", "Failed to register customer: " + ex.getMessage(), Alert.AlertType.ERROR);
+        txnTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("            PHARMACY MANAGEMENT SYSTEM\n");
+                sb.append("=================================================\n");
+                sb.append(String.format("Receipt ID : %s\n", newVal.getTxnId()));
+                sb.append(String.format("Date       : %s\n", newVal.getDateTime()));
+                sb.append("-------------------------------------------------\n");
+                sb.append(String.format("%-26s %5s %16s\n", "Item", "Qty", "Subtotal"));
+                sb.append("-------------------------------------------------\n");
+                for (CartItem ci : newVal.getItems()) {
+                    String name = ci.getName();
+                    if (name.length() > 24) name = name.substring(0, 21) + "...";
+                    String subText = String.format("\u20B5%.2f", ci.getSubtotal());
+                    sb.append(String.format("%-26s %5d %16s\n", name, ci.getQuantity(), subText));
+                }
+                sb.append("-------------------------------------------------\n");
+                String totalText = String.format("\u20B5%.2f", newVal.getTotal());
+                sb.append(String.format("%-32s %16s\n", "TOTAL DUE:", totalText));
+                sb.append("=================================================\n");
+                sb.append("          Thank you for your business!");
+                receiptArea.setText(sb.toString());
+            } else {
+                receiptArea.setText("");
             }
         });
 
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
+        right.getChildren().addAll(receiptArea);
 
-        right.getChildren().addAll(fldId, fldName, fldPhone, fldEmail, spacer, btnAddCust);
-
-        customersCenter = center;
-        customersRight = right;
-    }
-
-    /**
-     * Builds the System Settings page — full-width configuration panel.
-     */
-    private void buildSettingsPage() {
-        VBox center = createPageShell("System Settings",
-                "Configure application preferences, security, and data management");
-
-        // Settings sections
-        VBox sectionsContainer = new VBox(20);
-        VBox.setVgrow(sectionsContainer, Priority.ALWAYS);
-
-        // --- General Settings ---
-        VBox generalSection = createSettingsSection("General Settings", "\u2699");
-        HBox genRow1 = createSettingsRow("Pharmacy Name", createSettingsTextField("Pharmacy Management System"));
-        HBox genRow2 = createSettingsRow("Address", createSettingsTextField("123 Health Street, Medical District"));
-        HBox genRow3 = createSettingsRow("Phone Number", createSettingsTextField("+233 (0) 30 123-4567"));
-        HBox genRow4 = createSettingsRow("License Number", createSettingsTextField("PH-2024-0042"));
-        generalSection.getChildren().addAll(genRow1, genRow2, genRow3, genRow4);
-
-        // --- Security Settings ---
-        VBox securitySection = createSettingsSection("Security & Access", "\uD83D\uDD12");
-        HBox secRow1 = createSettingsRow("Session Timeout", createSettingsCombo("30 minutes", "15 minutes", "30 minutes", "1 hour", "Never"));
-        HBox secRow2 = createSettingsRow("Auto-Lock Screen", createSettingsCombo("Enabled", "Enabled", "Disabled"));
-        HBox secRow3 = createSettingsRow("Two-Factor Auth", createSettingsCombo("Disabled", "Enabled", "Disabled"));
-        securitySection.getChildren().addAll(secRow1, secRow2, secRow3);
-
-        // --- Notifications ---
-        VBox notifSection = createSettingsSection("Notifications", "\uD83D\uDD14");
-        HBox notRow1 = createSettingsRow("Low Stock Alerts", createSettingsCombo("Enabled", "Enabled", "Disabled"));
-        HBox notRow2 = createSettingsRow("Stock Threshold", createSettingsTextField("30"));
-        HBox notRow3 = createSettingsRow("Email Reports", createSettingsCombo("Weekly", "Daily", "Weekly", "Monthly", "Disabled"));
-        notifSection.getChildren().addAll(notRow1, notRow2, notRow3);
-
-        // --- Data Management ---
-        VBox dataSection = createSettingsSection("Data Management", "\uD83D\uDCBE");
-        HBox dataRow1 = createSettingsRow("Auto Backup", createSettingsCombo("Daily", "Daily", "Weekly", "Monthly", "Disabled"));
-        
-        HBox dataRow2 = new HBox(15);
-        dataRow2.setAlignment(Pos.CENTER_LEFT);
-        dataRow2.setPadding(new Insets(8, 15, 8, 15));
-        Label exportLabel = new Label("Export Data");
-        exportLabel.getStyleClass().addAll("form-label", "text-muted");
-        exportLabel.setMinWidth(160);
-        Button btnExport = new Button("\uD83D\uDCE4 Export to CSV");
-        btnExport.getStyleClass().add("action-button-delete");
-        btnExport.setStyle("-fx-text-fill: -fx-color-blue; -fx-border-color: rgba(59,130,246,0.3);");
-        btnExport.setOnAction(e -> showAlert("Export", "Data exported successfully to pharmacy_data.csv", Alert.AlertType.INFORMATION));
-        Button btnBackup = new Button("\uD83D\uDCBE Backup Now");
-        btnBackup.getStyleClass().add("action-button-delete");
-        btnBackup.setStyle("-fx-text-fill: -fx-color-green; -fx-border-color: rgba(16,185,129,0.3);");
-        btnBackup.setOnAction(e -> showAlert("Backup", "Database backup created successfully.", Alert.AlertType.INFORMATION));
-        dataRow2.getChildren().addAll(exportLabel, btnExport, btnBackup);
-
-        dataSection.getChildren().addAll(dataRow1, dataRow2);
-
-        sectionsContainer.getChildren().addAll(generalSection, securitySection, notifSection, dataSection);
-
-        // Wrap in ScrollPane for overflow
-        ScrollPane scroll = new ScrollPane(sectionsContainer);
-        scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        scroll.getStyleClass().add("settings-scroll");
-        VBox.setVgrow(scroll, Priority.ALWAYS);
-
-        // Save button footer
-        HBox footer = new HBox(10);
-        footer.setAlignment(Pos.CENTER_RIGHT);
-        Button btnSave = new Button("\u2713 Save All Settings");
-        btnSave.getStyleClass().add("action-button-add");
-        btnSave.setPrefHeight(40);
-        btnSave.setPrefWidth(200);
-        btnSave.setOnAction(e -> showAlert("Settings Saved", "All system settings have been saved successfully.", Alert.AlertType.INFORMATION));
-        Label savedLabel = new Label("Last saved: Today 10:30 AM");
-        savedLabel.getStyleClass().add("footer-help-text");
-        Region fSpacer = new Region();
-        HBox.setHgrow(fSpacer, Priority.ALWAYS);
-        footer.getChildren().addAll(savedLabel, fSpacer, btnSave);
-
-        center.getChildren().addAll(scroll, footer);
-
-        settingsCenter = center;
+        transactionsCenter = center;
+        transactionsRight = right;
     }
 
     // ============================================================
-    //                      UI HELPER METHODS
+    // UI HELPER METHODS
     // ============================================================
 
     /**
@@ -1467,11 +1358,6 @@ public class MainController {
 
     /**
      * Creates a stylized metric/statistic card for dashboards.
-     *
-     * @param label      The title of the statistic (e.g., "Total Revenue").
-     * @param value      The value of the statistic (e.g., "$1,000").
-     * @param colorClass The CSS class to apply for color accents (e.g., "stat-card-teal").
-     * @return A VBox acting as the visual card.
      */
     private VBox createStatCard(String label, String value, String colorClass) {
         VBox card = new VBox(5);
@@ -1522,79 +1408,37 @@ public class MainController {
         return field;
     }
 
-    /**
-     * Creates a settings section with a title header.
-     */
-    private VBox createSettingsSection(String title, String icon) {
-        VBox section = new VBox(8);
-        section.getStyleClass().addAll("stat-card");
-        section.setStyle("-fx-border-color: rgba(255,255,255,0.05); -fx-border-width: 1;");
-        section.setPadding(new Insets(20));
-
-        Label header = new Label(icon + "  " + title);
-        header.getStyleClass().add("panel-title");
-        header.setStyle("-fx-font-size: 15px;");
-
-        Separator sep = new Separator();
-        sep.getStyleClass().add("panel-separator");
-
-        section.getChildren().addAll(header, sep);
-        return section;
-    }
-
-    /**
-     * Creates a settings row (label + control).
-     */
-    private HBox createSettingsRow(String label, Node control) {
-        HBox row = new HBox(15);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(6, 15, 6, 15));
-        Label lbl = new Label(label);
-        lbl.getStyleClass().addAll("form-label", "text-muted");
-        lbl.setMinWidth(160);
-        row.getChildren().addAll(lbl, control);
-        return row;
-    }
-
-    private TextField createSettingsTextField(String defaultValue) {
-        TextField tf = new TextField(defaultValue);
-        tf.getStyleClass().add("form-field");
-        tf.setPrefWidth(250);
-        return tf;
-    }
-
-    private ComboBox<String> createSettingsCombo(String defaultVal, String... items) {
-        ComboBox<String> combo = new ComboBox<>(FXCollections.observableArrayList(items));
-        combo.setValue(defaultVal);
-        combo.getStyleClass().add("form-combo");
-        combo.setPrefWidth(250);
-        return combo;
-    }
-
     // ============================================================
-    //                      UTILITY & CALCULATIONS
+    // UTILITY & CALCULATIONS
     // ============================================================
 
     /**
      * Calculates the number of items that have low stock (between 1 and 29 units).
+     * 
      * @return The count of low stock items.
      */
     private int countLowStock() {
         int count = 0;
-        for (Medicine m : masterData) if (m.getStock() > 0 && m.getStock() < 30) count++;
+        for (Medicine m : masterData)
+            if (m.getStock() > 0 && m.getStock() < 30)
+                count++;
         return count;
     }
 
     private int countOutOfStock() {
         int count = 0;
-        for (Medicine m : masterData) if (m.getStock() == 0) count++;
+        for (Medicine m : masterData)
+            if (m.getStock() == 0)
+                count++;
         return count;
     }
 
     private double avgPrice() {
-        if (masterData.isEmpty()) return 0;
+        if (masterData.isEmpty())
+            return 0;
         double sum = 0;
-        for (Medicine m : masterData) sum += m.getPrice();
+        for (Medicine m : masterData)
+            sum += m.getPrice();
         return sum / masterData.size();
     }
 
@@ -1603,14 +1447,17 @@ public class MainController {
         Label alertTitle = new Label("\u26A0 Stock Alerts");
         alertTitle.getStyleClass().add("stat-label");
         alertTitle.setStyle("-fx-text-fill: #fbbf24; -fx-font-weight: bold;");
-        
+
         VBox alertItems = new VBox(4);
         for (Medicine m : masterData) {
             if (m.getStock() == 0 || m.getStock() < 30) {
-                Label alertItem = new Label((m.getStock() == 0 ? "\u26D4 " : "\u26A0 ") + m.getName() + " \u2014 " + m.getStock() + " left");
+                Label alertItem = new Label((m.getStock() == 0 ? "\u26D4 " : "\u26A0 ") + m.getName() + " \u2014 "
+                        + m.getStock() + " left");
                 alertItem.getStyleClass().add("form-label");
-                if (m.getStock() == 0) alertItem.getStyleClass().add("text-danger");
-                else alertItem.getStyleClass().add("text-warning");
+                if (m.getStock() == 0)
+                    alertItem.getStyleClass().add("text-danger");
+                else
+                    alertItem.getStyleClass().add("text-warning");
                 alertItems.getChildren().add(alertItem);
             }
         }
@@ -1625,14 +1472,14 @@ public class MainController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-        
+
         DialogPane pane = alert.getDialogPane();
         pane.getStyleClass().add("alert-dialog");
         URL cssResource = getClass().getResource("/com/pharmacy/style/styles.css");
         if (cssResource != null) {
             pane.getStylesheets().add(cssResource.toExternalForm());
         }
-        
+
         alert.showAndWait();
     }
 }

@@ -15,7 +15,7 @@ import java.util.Map;
  * for querying, inserting, and seeding the data.
  */
 public class DatabaseManager {
-    private static final String URL = "jdbc:sqlite:pharmacy.db";
+    private static final String URL = "jdbc:sqlite:pharmacy_management.db";
 
     public static void initializeDatabase() {
         try (Connection conn = DriverManager.getConnection(URL)) {
@@ -31,20 +31,11 @@ public class DatabaseManager {
                             "price REAL NOT NULL" +
                             ");");
 
-                    // Customers Table
-                    stmt.execute("CREATE TABLE IF NOT EXISTS customers (" +
-                            "id TEXT PRIMARY KEY, " +
-                            "name TEXT NOT NULL, " +
-                            "phone TEXT NOT NULL, " +
-                            "email TEXT NOT NULL, " +
-                            "purchases TEXT NOT NULL, " +
-                            "spent TEXT NOT NULL" +
-                            ");");
+
 
                     // Transactions Table
                     stmt.execute("CREATE TABLE IF NOT EXISTS transactions (" +
                             "txn_id TEXT PRIMARY KEY, " +
-                            "customer_id TEXT, " +
                             "date_time TEXT NOT NULL, " +
                             "total REAL NOT NULL" +
                             ");");
@@ -69,7 +60,7 @@ public class DatabaseManager {
                 }
 
                 if (isTableEmpty(conn, "medicines")) seedMedicines(conn);
-                if (isTableEmpty(conn, "customers")) seedCustomers(conn);
+
                 if (isTableEmpty(conn, "transactions")) seedTransactions(conn);
                 if (isTableEmpty(conn, "users")) seedUsers(conn);
             }
@@ -124,24 +115,7 @@ public class DatabaseManager {
         }
     }
 
-    private static void seedCustomers(Connection conn) throws SQLException {
-        String sql = "INSERT INTO customers (id, name, phone, email, purchases, spent) VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            Object[][] initialData = {
-                {"C001", "John Doe", "0501234567", "john@email.com", "5", "120.50"},
-                {"C002", "Jane Smith", "0249876543", "jane@email.com", "2", "45.00"}
-            };
-            for (Object[] row : initialData) {
-                pstmt.setString(1, (String) row[0]);
-                pstmt.setString(2, (String) row[1]);
-                pstmt.setString(3, (String) row[2]);
-                pstmt.setString(4, (String) row[3]);
-                pstmt.setString(5, (String) row[4]);
-                pstmt.setString(6, (String) row[5]);
-                pstmt.executeUpdate();
-            }
-        }
-    }
+
 
     private static void seedTransactions(Connection conn) throws SQLException {
         // No initial transactions needed
@@ -188,27 +162,7 @@ public class DatabaseManager {
         return list;
     }
 
-    public static ObservableList<String[]> loadCustomers() {
-        ObservableList<String[]> list = FXCollections.observableArrayList();
-        String sql = "SELECT * FROM customers";
-        try (Connection conn = DriverManager.getConnection(URL);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                list.add(new String[]{
-                        rs.getString("id"),
-                        rs.getString("name"),
-                        rs.getString("phone"),
-                        rs.getString("email"),
-                        rs.getString("purchases"),
-                        rs.getString("spent")
-                });
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
+
 
     public static ObservableList<Transaction> loadTransactions() {
         ObservableList<Transaction> list = FXCollections.observableArrayList();
@@ -239,7 +193,6 @@ public class DatabaseManager {
                 Transaction t = new Transaction(
                         txnId,
                         rsTxn.getString("date_time"),
-                        rsTxn.getString("customer_id"),
                         items,
                         rsTxn.getDouble("total")
                 );
@@ -289,40 +242,18 @@ public class DatabaseManager {
         }
     }
 
-    public static void addCustomer(String[] custData) throws SQLException {
-        String sql = "INSERT INTO customers (id, name, phone, email, purchases, spent) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(URL);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, custData[0]);
-            pstmt.setString(2, custData[1]);
-            pstmt.setString(3, custData[2]);
-            pstmt.setString(4, custData[3]);
-            pstmt.setString(5, custData[4]);
-            pstmt.setString(6, custData[5]);
-            pstmt.executeUpdate();
-        }
-    }
 
-    public static void deleteCustomer(String id) throws SQLException {
-        String sql = "DELETE FROM customers WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection(URL);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, id);
-            pstmt.executeUpdate();
-        }
-    }
 
     public static void saveTransaction(Transaction t) throws SQLException {
-        String sqlTxn = "INSERT INTO transactions (txn_id, customer_id, date_time, total) VALUES (?, ?, ?, ?)";
+        String sqlTxn = "INSERT INTO transactions (txn_id, date_time, total) VALUES (?, ?, ?)";
         String sqlItem = "INSERT INTO transaction_items (txn_id, code, name, quantity, unit_price) VALUES (?, ?, ?, ?, ?)";
         
         try (Connection conn = DriverManager.getConnection(URL)) {
             conn.setAutoCommit(false);
             try (PreparedStatement pTxn = conn.prepareStatement(sqlTxn)) {
                 pTxn.setString(1, t.getTxnId());
-                pTxn.setString(2, t.getCustomerId());
-                pTxn.setString(3, t.getDateTime());
-                pTxn.setDouble(4, t.getTotal());
+                pTxn.setString(2, t.getDateTime());
+                pTxn.setDouble(3, t.getTotal());
                 pTxn.executeUpdate();
             }
             try (PreparedStatement pItem = conn.prepareStatement(sqlItem)) {

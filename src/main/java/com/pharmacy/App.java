@@ -22,6 +22,8 @@ public class App extends Application {
      */
     @Override
     public void start(Stage stage) {
+
+
         // Initialize local SQLite database
         com.pharmacy.util.DatabaseManager.initializeDatabase();
         
