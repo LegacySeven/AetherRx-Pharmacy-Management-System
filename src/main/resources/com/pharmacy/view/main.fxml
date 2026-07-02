@@ -53,8 +53,8 @@
                 <padding>
                     <Insets top="12" right="15" bottom="12" left="15"/>
                 </padding>
-                <Label text="Crispin" styleClass="profile-name"/>
-                <Label text="Administrator" styleClass="profile-role"/>
+                <Label fx:id="lblProfileName" text="User" styleClass="profile-name"/>
+                <Label fx:id="lblProfileRole" text="Role" styleClass="profile-role"/>
             </VBox>
         </VBox>
     </left>

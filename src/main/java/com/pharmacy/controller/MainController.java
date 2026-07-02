@@ -60,6 +60,12 @@ public class MainController {
     @FXML
     private VBox centerContent;
 
+    // --- Sidebar Profile Labels ---
+    @FXML
+    private Label lblProfileName;
+    @FXML
+    private Label lblProfileRole;
+
     // --- Internal State & Observables ---
     /**
      * The master dataset holding all current pharmacy inventory. Shared across
@@ -112,7 +118,17 @@ public class MainController {
         // 4. Load transaction data
         loadSampleTransactions();
 
-        // 5. Enforce Role-Based Access Control (RBAC)
+        // 5. Populate sidebar profile with the logged-in user's details
+        String role = com.pharmacy.util.UserSession.getRole();
+        if ("Admin".equals(role)) {
+            lblProfileName.setText("Pharmacist");
+            lblProfileRole.setText("Administrator");
+        } else {
+            lblProfileName.setText("Cashier");
+            lblProfileRole.setText("Cashier");
+        }
+
+        // 6. Enforce Role-Based Access Control (RBAC)
         if (com.pharmacy.util.UserSession.isCashier()) {
             // Visually indicate restricted pages with lock icons
             btnInventory.setText("\uD83D\uDD12 Inventory");
